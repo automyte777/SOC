@@ -166,9 +166,9 @@ class SocietyController {
 
       await connection.beginTransaction();
 
-      // 5. Uniqueness check (race-condition safe — runs inside transaction)
+      // 5. Uniqueness check (race-condition safe — acquires exclusive lock)
       const [subdomainCheck] = await connection.query(
-        'SELECT id FROM societies WHERE subdomain = ? OR requested_subdomain = ?',
+        'SELECT id FROM societies WHERE subdomain = ? OR requested_subdomain = ? FOR UPDATE',
         [requested_subdomain, requested_subdomain]
       );
       if (subdomainCheck.length > 0) {
