@@ -17,6 +17,7 @@ const tenantResolver = async (req, res, next) => {
     // 2. Skip resolution for system domains
     if (
       hostname === mainDomain ||
+      hostname.startsWith('soc.') || // Bypass for the user's 'soc.automytee.in' landing page
       hostname === 'localhost' ||
       hostname.includes('localhost') ||
       hostname.includes('.vercel.app') ||
