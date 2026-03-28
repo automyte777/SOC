@@ -44,7 +44,11 @@ app.get('/', (req, res) => {
   res.send('SmartSOC Multi-Society Management Platform API v2.0');
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-  console.log(`   Domain: ${process.env.MAIN_DOMAIN || 'automytee.in'}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`   Domain: ${process.env.MAIN_DOMAIN || 'automytee.in'}`);
+  });
+}
+
+module.exports = app;
