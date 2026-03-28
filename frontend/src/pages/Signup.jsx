@@ -314,14 +314,14 @@ export default function Signup() {
         setSubmitted(true);
       }
     } catch (err) {
-      const errData = err.response?.data;
-      setError(
-        errData?.error ||
-        errData?.message ||
-        'An error occurred during registration. Please try again.'
-      );
-      // Show suggestions if subdomain conflict
-      if (errData?.suggestions) setSuggestions(errData.suggestions);
+      console.error('Registration failed:', err);
+      const apiError = err.response?.data;
+      const message = typeof apiError?.error === 'object'
+        ? (apiError.error.message || JSON.stringify(apiError.error))
+        : (apiError?.error || apiError?.message || 'An error occurred during registration. Please try again.');
+      setError(String(message));
+      
+      if (apiError?.suggestions) setSuggestions(apiError.suggestions);
     } finally {
       setLoading(false);
     }

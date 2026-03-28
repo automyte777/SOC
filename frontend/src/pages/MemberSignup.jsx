@@ -70,7 +70,12 @@ export default function MemberSignup() {
         setTimeout(() => navigate('/login'), 5000);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit registration. Please check inputs.');
+      console.error('Member signup failed:', err);
+      const apiError = err.response?.data;
+      const message = typeof apiError?.error === 'object'
+        ? (apiError.error.message || JSON.stringify(apiError.error))
+        : (apiError?.error || apiError?.message || 'Failed to submit registration. Please check inputs.');
+      setError(String(message));
     } finally {
       setLoading(false);
     }

@@ -23,120 +23,94 @@ class AuthController {
   async login(req, res) {
     try {
       const { email, password, subdomain: bodySubdomain } = req.body;
-      console.log(`[AuthController] Login attempt:`, { email, bodySubdomain, host: req.hostname });
+      
+      console.log(`[Auth:Login] Attempt for ${email} on ${bodySubdomain || 'current domain'}`);
 
-      // 1. Validate presence of email and password
+      // 1. Validation
       if (!email || !password) {
         return res.status(400).json({
           success: false,
-          message: 'Email and password are required.'
+          message: 'Missing Credentials',
+          error: 'Email and password are required.'
         });
       }
 
-      // 2. Resolve tenant database
+      // 2. Resolve Tenant (Manual fallback for Vercel/Testing)
       let tenantDB   = req.tenantDB;
       let tenantInfo = req.tenant;
 
       if (!tenantDB && bodySubdomain) {
-        console.log(`[AuthController] Attempting resolution for subdomain: ${bodySubdomain}`);
+        console.log(`[Auth:Login] Resolving tenant manually via body: ${bodySubdomain}`);
         const pool = require('../database/db');
         const { getTenantConnection } = require('../services/tenantManager');
 
         const [societies] = await pool.query(
-          `SELECT id, name, database_name
-           FROM societies
-           WHERE subdomain = ? AND status = 'approved'`,
+          `SELECT id, name, database_name FROM societies WHERE subdomain = ? AND status = 'approved'`,
           [bodySubdomain]
         );
 
         if (societies.length > 0) {
           const society = societies[0];
-          console.log(`[AuthController] Found society: ${society.name} (DB: ${society.database_name})`);
           tenantDB = await getTenantConnection(society.database_name);
-          tenantInfo = {
-            id: society.id,
-            name: society.name,
-            dbName: society.database_name,
-            subdomain: bodySubdomain
-          };
-        } else {
-          console.warn(`[AuthController] No approved society found for subdomain: ${bodySubdomain}`);
+          tenantInfo = { id: society.id, name: society.name, dbName: society.database_name, subdomain: bodySubdomain };
         }
       }
 
       if (!tenantDB) {
         return res.status(400).json({
           success: false,
-          message: 'Unable to identify society. Please check your URL or specify your society subdomain.'
+          message: 'Society Not Identified',
+          error: 'Please ensure you are accessing your society-specific URL or providing the correct subdomain.'
         });
       }
 
-      // 3. Find user in the tenant's users table
-      const [users] = await tenantDB.query(
-        'SELECT * FROM users WHERE email = ?',
-        [email]
-      );
-
+      // 3. User Authentication
+      const [users] = await tenantDB.query('SELECT * FROM users WHERE email = ?', [email]);
       if (users.length === 0) {
-        return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+        return res.status(401).json({ success: false, message: 'Invalid Credentials', error: 'User does not exist in this society.' });
       }
 
       const user = users[0];
-
-      // 4. Compare passwords
       const passwordMatch = await bcrypt.compare(password, user.password_hash);
       if (!passwordMatch) {
-        return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+        return res.status(401).json({ success: false, message: 'Invalid Credentials', error: 'Incorrect password.' });
       }
 
-      // Check Approval Status
-      if (user.is_approved === 0 || user.is_approved === false) {
-        return res.status(403).json({ success: false, message: 'Your account is not approved yet. Please contact society admin.' });
+      // 4. Status Checks
+      if (!user.is_approved) {
+        return res.status(403).json({ success: false, message: 'Account Not Approved', error: 'Your registration is pending secretary approval.' });
       }
 
-      // Check Tenant Expiry
-      if (user.role === 'tenant' && user.rental_end_date) {
-        const currentDate = new Date();
-        const endDate = new Date(user.rental_end_date);
-        if (currentDate > endDate) {
-          return res.status(403).json({ success: false, message: 'Your rental period has expired. Please contact admin.' });
-        }
-      }
-
-      // 5. Generate JWT  ─ includes society_id for tenant resolution on subsequent requests
+      // 5. Token Generation
       const token = jwt.sign(
-        {
-          user_id:   user.id,
-          society_id: tenantInfo.id,
-          role:       user.role
-        },
-        process.env.JWT_SECRET || 'production_secret_key_882299',
-        { expiresIn: '7d' }
+        { user_id: user.id, society_id: tenantInfo.id, role: user.role },
+        process.env.JWT_SECRET || 'fallback_secret_high_entropy_2025',
+        { expiresIn: '24h' }
       );
 
-      // 6. Determine dashboard path based on role
-      const dashboardPath = ROLE_DASHBOARD[user.role] || '/admin/dashboard';
+      console.log(`[Auth:Login] SUCCESS: ${user.email} logged in as ${user.role}`);
 
-      // 7. Return success response
       res.json({
         success: true,
+        message: 'Login successful',
         token,
-        dashboardPath,
+        dashboardPath: ROLE_DASHBOARD[user.role] || '/admin/dashboard',
         user: {
-          id:           user.id,
-          name:         user.name,
-          role:         user.role,
-          email:        user.email,
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          email: user.email,
           society_name: tenantInfo.name,
-          society_id:   tenantInfo.id
+          society_id: tenantInfo.id
         }
       });
 
     } catch (error) {
-      console.error('[AuthController] Login error:', error);
+      console.error('[Auth:Login Exception]:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error during login.'
+        message: 'Login Failed',
+        error: error.message || 'An unexpected error occurred.'
       });
     }
   }
@@ -145,26 +119,44 @@ class AuthController {
     try {
       const { name, email, phone, password, role, flat_number, block, subdomain } = req.body;
       
+      console.log(`[Auth:Signup] New request for ${email} on ${subdomain}`);
+
+      // 1. Core Validation
+      if (!name || !email || !password || !role || !flat_number || !subdomain) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing Required Fields',
+          error: 'Name, email, password, role, flat number, and society subdomain are mandatory.'
+        });
+      }
+
       const pool = require('../database/db');
       const { getTenantConnection } = require('../services/tenantManager');
       
+      // 2. Resolve Society
       const [societies] = await pool.query(
         `SELECT id, name, database_name FROM societies WHERE subdomain = ? AND status = 'approved'`,
         [subdomain]
       );
       
       if (societies.length === 0) {
-        return res.status(404).json({ success: false, message: 'Invalid society subdomain or society is not approved.' });
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Society Not Found', 
+          error: `The society "${subdomain}" is either invalid or not yet approved.` 
+        });
       }
 
-      const tenantDB = await getTenantConnection(societies[0].database_name);
+      const society = societies[0];
+      const tenantDB = await getTenantConnection(society.database_name);
 
+      // 3. User Uniqueness
       const [existingUsers] = await tenantDB.query('SELECT id FROM users WHERE email = ?', [email]);
       if (existingUsers.length > 0) {
-        return res.status(400).json({ success: false, message: 'Email is already registered in this society.' });
+        return res.status(400).json({ success: false, message: 'Email taken', error: 'This email is already registered in this society.' });
       }
 
-      // 1. Smart Flat Validation: Find or Auto-Create Flat
+      // 4. Flat Resolution
       const normalizedFlat = flat_number.trim().toLowerCase().replace(/[\s-]/g, '');
       const normalizedBlock = block ? block.trim().toUpperCase() : null;
 
@@ -175,44 +167,55 @@ class AuthController {
       
       let targetFlatId = null;
       if (flats.length === 0) {
-        // Flat does not exist -> Auto-create as pending
         const [result] = await tenantDB.query(
           'INSERT INTO flats (flat_number, building, status, created_by) VALUES (?, ?, "pending_verification", "user_signup")',
           [flat_number.trim(), normalizedBlock]
         );
         targetFlatId = result.insertId;
       } else {
-        // Flat exists -> Link to it
         targetFlatId = flats[0].id;
       }
 
-      // 2. Family linking & Owner Validation
-      const { rental_start_date, rental_end_date } = req.body;
-      let is_primary_owner = false;
-
+      // 5. Role Constraints
       if (role === 'home_owner') {
         const [existingOwners] = await tenantDB.query(
-          "SELECT id FROM users WHERE LOWER(REPLACE(REPLACE(flat_number, ' ', ''), '-', '')) = ? AND (UPPER(block) = ? OR block IS NULL) AND role = 'home_owner' AND id != 0", 
-          [normalizedFlat, normalizedBlock]
+          "SELECT id FROM users WHERE flat_id = ? AND role = 'home_owner'", 
+          [targetFlatId]
         );
         if (existingOwners.length > 0) {
-          return res.status(400).json({ success: false, message: 'Owner already exists for this flat. Try joining as a Family Member.' });
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Owner Exists', 
+            error: 'An owner is already registered for this flat. Please join as a Family Member.' 
+          });
         }
-        is_primary_owner = true;
       }
 
+      // 6. Finalize User
       const password_hash = await bcrypt.hash(password, 10);
+      const { rental_start_date, rental_end_date } = req.body;
       
       await tenantDB.query(
         `INSERT INTO users (name, email, phone, password_hash, role, is_approved, status, flat_number, block, flat_id, is_primary_owner, rental_start_date, rental_end_date) 
          VALUES (?, ?, ?, ?, ?, false, 'pending', ?, ?, ?, ?, ?, ?)`,
-        [name, email, phone, password_hash, role, flat_number, block, targetFlatId, is_primary_owner, rental_start_date || null, rental_end_date || null]
+        [name, email, phone, password_hash, role, flat_number, block, targetFlatId, (role === 'home_owner'), rental_start_date || null, rental_end_date || null]
       );
 
-      res.json({ success: true, message: 'Your request has been sent to the society secretary. You will be able to login only after approval.' });
+      console.log(`[Auth:Signup] SUCCESS: ${email} pending approval for ${society.name}`);
+
+      res.status(201).json({ 
+        success: true, 
+        message: 'Request Submitted',
+        data: 'Your registration has been sent to the society secretary. You can login once approved.' 
+      });
+
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ success: false, message: 'Internal server error during member registration.' });
+      console.error('[Auth:Signup Exception]:', e);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Registration Failed', 
+        error: e.message || 'A database error occurred.' 
+      });
     }
   }
 }

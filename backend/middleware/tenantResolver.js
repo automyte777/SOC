@@ -7,82 +7,73 @@ const { getTenantConnection } = require('../services/tenantManager');
  * and attaches the correct DB connection to the request.
  */
 const tenantResolver = async (req, res, next) => {
-  // Use x-forwarded-host if available (from proxy), otherwise req.hostname
-  const hostname = req.headers['x-forwarded-host'] || req.hostname;
-  const mainDomain = process.env.MAIN_DOMAIN || 'automytee.in';
-
-  console.log(`[TenantResolver] Resolving for host: ${hostname}`);
-
-  // 1. Skip resolution for main domain, localhost, or Vercel deployments
-  if (
-    hostname === mainDomain ||
-    hostname === 'localhost' ||
-    hostname.includes('localhost') ||
-    hostname.endsWith('.vercel.app')
-  ) {
-    return next();
-  }
-
-  // 2. Extract subdomain (e.g. greenpark.automytee.in → greenpark)
-  const parts = hostname.split('.');
-  const subdomain = parts[0];
-
-  // Ignore common non-tenant prefixes
-  if (!subdomain || subdomain === 'www') {
-    return next();
-  }
-
   try {
-    // 3. Find approved society in master DB
-    //    Only societies with status = 'approved' are allowed access
+    // 1. Identification
+    const hostname = req.headers['x-forwarded-host'] || req.hostname;
+    const mainDomain = process.env.MAIN_DOMAIN || 'automytee.in';
+
+    console.log(`[TenantResolver] Resolving: ${hostname} (Path: ${req.path})`);
+
+    // 2. Skip resolution for system domains
+    if (
+      hostname === mainDomain ||
+      hostname === 'localhost' ||
+      hostname.includes('localhost') ||
+      hostname.endsWith('.vercel.app') ||
+      hostname.endsWith('.am7.in') ||  // additional known system domain
+      req.path.startsWith('/api/master') // Shared master admin routes
+    ) {
+      return next();
+    }
+
+    // 3. Extract subdomain
+    const parts = hostname.split('.');
+    if (parts.length < 2) return next();
+    const subdomain = parts[0];
+
+    if (!subdomain || subdomain === 'www') {
+      return next();
+    }
+
+    // 4. Resolve from DB
     const [societies] = await pool.query(
-      `SELECT id, name, database_name, status
-       FROM societies
-       WHERE subdomain = ?`,
+      `SELECT id, name, database_name, status FROM societies WHERE subdomain = ?`,
       [subdomain]
     );
 
-    // 4. Not found at all
     if (societies.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Society Not Found',
-        error: `The subdomain "${subdomain}" is not registered on this platform.`
+        error: `The subdomain "${subdomain}" is not registered.`
       });
     }
 
     const society = societies[0];
 
-    // 5. Found but not yet approved
-    if (society.status === 'pending') {
+    // 5. Status Checks
+    if (society.status !== 'approved') {
+      const statusMsg = society.status === 'pending' 
+        ? 'Account pending approval.' 
+        : 'Account suspended.';
       return res.status(403).json({
         success: false,
-        message: 'Society Not Activated',
-        error: 'Your society registration is pending admin approval. Please check back later.'
+        message: 'Access Denied',
+        error: statusMsg
       });
     }
 
-    // 6. Rejected
-    if (society.status === 'rejected') {
-      return res.status(403).json({
-        success: false,
-        message: 'Society Rejected',
-        error: 'This society registration was not approved. Please contact support.'
-      });
-    }
-
-    // 7. Approved — resolve dynamic DB connection
     if (!society.database_name) {
       return res.status(500).json({
         success: false,
         message: 'Configuration Error',
-        error: 'Approved society has no database assigned. Please contact support.'
+        error: 'No database assigned to this approved society.'
       });
     }
 
+    // 6. Establish Connection
     const tenantDB = await getTenantConnection(society.database_name);
 
-    // 8. Attach tenant context to request
     req.tenant = {
       id: society.id,
       name: society.name,
@@ -93,10 +84,11 @@ const tenantResolver = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('[TenantResolver] Error:', error);
+    console.error('[TenantResolver CRITICAL ERROR]:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error resolving tenant.'
+      message: 'Platform Error',
+      error: 'We encountered a problem identifying your society. Please try again later.'
     });
   }
 };

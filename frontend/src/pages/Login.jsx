@@ -84,7 +84,11 @@ export default function Login({ detectedSubdomain }) {
       }
     } catch (err) {
       console.error('Login attempt failed:', err);
-      setError(err.response?.data?.message || 'Invalid credentials or subdomain. Please check and try again.');
+      const apiError = err.response?.data;
+      const message = typeof apiError?.error === 'object' 
+        ? (apiError.error.message || JSON.stringify(apiError.error)) 
+        : (apiError?.error || apiError?.message || 'Invalid credentials or subdomain. Please check and try again.');
+      setError(String(message));
     } finally {
       setLoading(false);
     }

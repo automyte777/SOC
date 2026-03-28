@@ -19,10 +19,12 @@ const getTenantConnection = async (dbName) => {
     port: process.env.DB_PORT || 3306,
     database: dbName,
     waitForConnections: true,
-    connectionLimit: 5,
+    connectionLimit: 2, // Vercel is stateless; each function call only needs 1.
+    maxIdle: 2,
+    idleTimeout: 30000,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 10000
+    keepAliveInitialDelay: 0
   });
 
   tenantPools[dbName] = pool;
