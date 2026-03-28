@@ -172,7 +172,12 @@ class SocietyController {
       res.status(201).json({
         success: true,
         message: 'Registration Submitted',
-        data: 'Your society is pending activation. Our admin will verify your details.'
+        society: {
+          id: socRes.insertId,
+          name: society_name,
+          requested_subdomain,
+          requested_url: `${requested_subdomain}.${process.env.MAIN_DOMAIN || 'automytee.in'}`
+        }
       });
 
     } catch (error) {
