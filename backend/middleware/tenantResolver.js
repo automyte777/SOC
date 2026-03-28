@@ -10,7 +10,7 @@ const tenantResolver = async (req, res, next) => {
   try {
     // 1. Identification
     const hostname = req.headers['x-forwarded-host'] || req.hostname;
-    const mainDomain = process.env.MAIN_DOMAIN || 'automytee.in';
+    const mainDomain = process.env.BASE_DOMAIN || process.env.MAIN_DOMAIN || 'automytee.in';
 
     console.log(`[TenantResolver] Resolving: ${hostname} (Path: ${req.path})`);
 
@@ -19,14 +19,15 @@ const tenantResolver = async (req, res, next) => {
       hostname === mainDomain ||
       hostname === 'localhost' ||
       hostname.includes('localhost') ||
-      hostname.endsWith('.vercel.app') ||
-      hostname.endsWith('.am7.in') ||  // additional known system domain
+      hostname.includes('.vercel.app') ||
+      hostname.includes('.netlify.app') ||
       req.path.startsWith('/api/master') // Shared master admin routes
     ) {
       return next();
     }
 
-    // 3. Extract subdomain
+    // 3. Extract subdomain from *.automytee.in
+    // e.g. "somnath.automytee.in" → parts = ["somnath","automytee","in"]
     const parts = hostname.split('.');
     if (parts.length < 2) return next();
     const subdomain = parts[0];

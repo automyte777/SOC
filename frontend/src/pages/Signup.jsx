@@ -6,10 +6,12 @@ import {
   MapPin, Settings, Check, Building, Key, CheckCircle2, User, Phone,
   Loader2, AlertCircle, Clock, Sparkles, ChevronRight, RefreshCw
 } from 'lucide-react';
+import { MAIN_DOMAIN } from '../utils/domain';
 
 // ─────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────
+
 function FeatureItem({ icon: Icon, text }) {
   return (
     <div className="flex items-center gap-4 text-slate-700 font-medium">
@@ -121,7 +123,7 @@ function PendingApprovalScreen({ registrationData }) {
         <div className="mb-6 bg-blue-50 rounded-xl px-4 py-3 border border-blue-100 text-left">
           <p className="text-xs text-blue-500 font-semibold uppercase tracking-wider mb-1">Your Society URL (once approved)</p>
           <p className="font-bold text-blue-700 text-sm break-all">
-            {registrationData?.requested_url || `${registrationData?.requested_subdomain}.automytee.in`}
+            {registrationData?.requested_url || `${registrationData?.requested_subdomain}.${MAIN_DOMAIN}`}
           </p>
         </div>
 
@@ -154,7 +156,7 @@ function PendingApprovalScreen({ registrationData }) {
           <p className="font-semibold text-slate-500 mb-1">What happens next?</p>
           The platform admin will review your registration. Once approved, your society will be live at{' '}
           <span className="font-bold text-blue-600">
-            {registrationData?.requested_url || `${registrationData?.requested_subdomain}.automytee.in`}
+            {registrationData?.requested_url || `${registrationData?.requested_subdomain}.${MAIN_DOMAIN}`}
           </span>{' '}
           and you will be able to log in.
         </div>
@@ -233,7 +235,7 @@ export default function Signup() {
       const data = res.data;
       if (data.available) {
         setSubdomainStatus('available');
-        setSubdomainMessage(`✓ "${value}.automytee.in" is available!`);
+        setSubdomainMessage(`✓ "${value}.${MAIN_DOMAIN}" is available!`);
         setSuggestions([]);
       } else {
         setSubdomainStatus('taken');
@@ -371,7 +373,7 @@ export default function Signup() {
         </div>
 
         <div className="text-sm text-slate-400 mt-12">
-          © {new Date().getFullYear()} SmartSOC Platforms Inc. · automytee.in
+          © {new Date().getFullYear()} SmartSOC Platforms Inc. · {MAIN_DOMAIN}
         </div>
       </div>
 
@@ -424,7 +426,7 @@ export default function Signup() {
                     placeholder="greenpark"
                   />
                   <span className="inline-flex items-center px-3 rounded-r-md bg-slate-50 text-slate-500 sm:text-sm border-l border-slate-200 whitespace-nowrap">
-                    .automytee.in
+                    .{MAIN_DOMAIN}
                   </span>
                 </div>
 

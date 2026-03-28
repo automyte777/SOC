@@ -12,10 +12,11 @@ const initMasterDB = async () => {
 
     // 0. Ensure saas_master_db exists
     const rootConnection = await mysql.createConnection({
-      host: process.env.DB_HOST || '127.0.0.1',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      port: process.env.DB_PORT || 3306
+      host:     process.env.DB_HOST || '127.0.0.1',
+      user:     process.env.DB_USER || 'root',
+      password: process.env.DB_PASS || process.env.DB_PASSWORD || '',
+      port:     parseInt(process.env.DB_PORT || '3306', 10),
+      connectTimeout: 10000,
     });
 
     await rootConnection.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME || 'saas_master_db'}\``);
@@ -95,6 +96,16 @@ const initMasterDB = async () => {
       `);
       console.log('✅ Table "domains" checked/created.');
 
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          action VARCHAR(255) NOT NULL,
+          details TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ Table "audit_logs" checked/created.');
+
       // ── plans ────────────────────────────────────────────────────────
       await connection.query(`
         CREATE TABLE IF NOT EXISTS plans (
@@ -123,8 +134,9 @@ const initMasterDB = async () => {
       connection.release();
     }
   } catch (error) {
-    console.error('❌ Database Initialization Failed:', error);
-    process.exit(1);
+    console.error('❌ Database Initialization Failed:', error.message);
+    // Do NOT call process.exit(1) in serverless environments — it kills the function
+    // The API will still serve requests; individual route errors will be caught per-request
   }
 };
 

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ShieldCheck
 } from 'lucide-react';
+import { MAIN_DOMAIN, buildSubdomainUrl } from '../utils/domain';
 
 export default function Login({ detectedSubdomain }) {
   const navigate = useNavigate();
@@ -70,16 +71,18 @@ export default function Login({ detectedSubdomain }) {
         // Finalize Subdomain Redirection
         const targetSubdomain = formData.subdomain;
         const currentHostname = window.location.hostname;
-        const mainDomain = 'automytee.in';
 
-        if (currentHostname === mainDomain) {
-          // Redirect to actual production domain subdomain
-          const port = window.location.port ? `:${window.location.port}` : '';
-          const protocol = window.location.protocol;
-          window.location.href = `${protocol}//${targetSubdomain}.${currentHostname}${port}/dashboard`;
-        } else {
-          // We are on localhost, OR already on a valid subdomain
+        if (
+          !currentHostname.includes('localhost') && 
+          currentHostname !== MAIN_DOMAIN && 
+          !currentHostname.includes('vercel.app') && 
+          !currentHostname.includes('netlify.app')
+        ) {
+          // Already on a valid society subdomain — just navigate in-app
           navigate('/dashboard');
+        } else {
+          // Cross-domain login: redirect to the correct society subdomain
+          window.location.href = buildSubdomainUrl(targetSubdomain, '/dashboard');
         }
       }
     } catch (err) {
@@ -147,7 +150,7 @@ export default function Login({ detectedSubdomain }) {
                     placeholder="e.g. greenpark"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                    .automytee.in
+                    .{MAIN_DOMAIN}
                   </div>
                 </div>
               </div>

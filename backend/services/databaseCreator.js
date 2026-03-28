@@ -13,11 +13,11 @@ class DatabaseCreator {
     
     // Connection to the database server (root access needed to create databases)
     const connection = await mysql.createConnection({
-      host: process.env.DB_HOST || '127.0.0.1',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      port: process.env.DB_PORT || 3306,
-      multipleStatements: true // Required to run all schema queries at once
+      host:    process.env.DB_HOST || '127.0.0.1',
+      user:    process.env.DB_USER || 'root',
+      password: process.env.DB_PASS || process.env.DB_PASSWORD || '',
+      port:    parseInt(process.env.DB_PORT || '3306', 10),
+      connectTimeout: 10000,
     });
 
     try {
@@ -156,8 +156,11 @@ class DatabaseCreator {
         );
       `;
 
-      // 3. Initialize Tables
-      await connection.query(schema);
+      // 3. Initialize Tables Sequentially
+      const queries = schema.split(';').filter(q => q.trim().length > 0);
+      for (const query of queries) {
+        await connection.query(query);
+      }
 
       // 4. Insert default Admin User
       await connection.query(
@@ -167,7 +170,7 @@ class DatabaseCreator {
 
       return dbName;
     } catch (error) {
-      console.error('Error creating society database:', error);
+      console.error('[DatabaseCreator] Error creating society database:', error);
       throw error;
     } finally {
       await connection.end();

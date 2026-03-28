@@ -30,7 +30,7 @@ const getResidents = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Residents GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch residents.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch residents.' });
   }
 };
 
@@ -47,7 +47,7 @@ const createResident = async (req, res) => {
     res.status(201).json({ success: true, message: 'Resident added.', id: result.insertId });
   } catch (error) {
     console.error('[Residents POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to create resident.' });
+    res.status(400).json({ success: false, message: 'Failed to create resident.' });
   }
 };
 
@@ -64,7 +64,7 @@ const updateResident = async (req, res) => {
     res.json({ success: true, message: 'Resident updated.' });
   } catch (error) {
     console.error('[Residents PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update resident.' });
+    res.status(400).json({ success: false, message: 'Failed to update resident.' });
   }
 };
 
@@ -76,7 +76,7 @@ const deleteResident = async (req, res) => {
     res.json({ success: true, message: 'Resident deleted.' });
   } catch (error) {
     console.error('[Residents DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete resident.' });
+    res.status(400).json({ success: false, message: 'Failed to delete resident.' });
   }
 };
 
@@ -107,7 +107,7 @@ const getFlats = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Flats GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch flats.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch flats.' });
   }
 };
 
@@ -124,7 +124,7 @@ const createFlat = async (req, res) => {
     res.status(201).json({ success: true, message: 'Flat created.', id: result.insertId });
   } catch (error) {
     console.error('[Flats POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to create flat.' });
+    res.status(400).json({ success: false, message: 'Failed to create flat.' });
   }
 };
 
@@ -141,7 +141,7 @@ const updateFlat = async (req, res) => {
     res.json({ success: true, message: 'Flat updated.' });
   } catch (error) {
     console.error('[Flats PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update flat.' });
+    res.status(400).json({ success: false, message: 'Failed to update flat.' });
   }
 };
 
@@ -153,7 +153,7 @@ const deleteFlat = async (req, res) => {
     res.json({ success: true, message: 'Flat deleted.' });
   } catch (error) {
     console.error('[Flats DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete flat.' });
+    res.status(400).json({ success: false, message: 'Failed to delete flat.' });
   }
 };
 
@@ -172,7 +172,7 @@ const getVisitors = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Visitors GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch visitors.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch visitors.' });
   }
 };
 
@@ -189,7 +189,7 @@ const createVisitor = async (req, res) => {
     res.status(201).json({ success: true, message: 'Visitor logged.', id: result.insertId });
   } catch (error) {
     console.error('[Visitors POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to create visitor.' });
+    res.status(400).json({ success: false, message: 'Failed to create visitor.' });
   }
 };
 
@@ -206,7 +206,7 @@ const updateVisitor = async (req, res) => {
     res.json({ success: true, message: 'Visitor updated.' });
   } catch (error) {
     console.error('[Visitors PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update visitor.' });
+    res.status(400).json({ success: false, message: 'Failed to update visitor.' });
   }
 };
 
@@ -218,7 +218,7 @@ const deleteVisitor = async (req, res) => {
     res.json({ success: true, message: 'Visitor record deleted.' });
   } catch (error) {
     console.error('[Visitors DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete visitor.' });
+    res.status(400).json({ success: false, message: 'Failed to delete visitor.' });
   }
 };
 
@@ -237,7 +237,7 @@ const getMaintenance = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Maintenance GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch maintenance records.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch maintenance records.' });
   }
 };
 
@@ -254,7 +254,7 @@ const createMaintenance = async (req, res) => {
     res.status(201).json({ success: true, message: 'Maintenance bill created.', id: result.insertId });
   } catch (error) {
     console.error('[Maintenance POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to create maintenance bill.' });
+    res.status(400).json({ success: false, message: 'Failed to create maintenance bill.' });
   }
 };
 
@@ -271,7 +271,7 @@ const updateMaintenance = async (req, res) => {
     res.json({ success: true, message: 'Maintenance bill updated.' });
   } catch (error) {
     console.error('[Maintenance PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update maintenance bill.' });
+    res.status(400).json({ success: false, message: 'Failed to update maintenance bill.' });
   }
 };
 
@@ -283,7 +283,7 @@ const deleteMaintenance = async (req, res) => {
     res.json({ success: true, message: 'Maintenance bill deleted.' });
   } catch (error) {
     console.error('[Maintenance DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete maintenance bill.' });
+    res.status(400).json({ success: false, message: 'Failed to delete maintenance bill.' });
   }
 };
 
@@ -302,7 +302,7 @@ const getComplaints = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Complaints GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch complaints.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch complaints.' });
   }
 };
 
@@ -319,7 +319,7 @@ const createComplaint = async (req, res) => {
     res.status(201).json({ success: true, message: 'Complaint filed.', id: result.insertId });
   } catch (error) {
     console.error('[Complaints POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to create complaint.' });
+    res.status(400).json({ success: false, message: 'Failed to create complaint.' });
   }
 };
 
@@ -336,7 +336,7 @@ const updateComplaint = async (req, res) => {
     res.json({ success: true, message: 'Complaint updated.' });
   } catch (error) {
     console.error('[Complaints PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update complaint.' });
+    res.status(400).json({ success: false, message: 'Failed to update complaint.' });
   }
 };
 
@@ -348,7 +348,7 @@ const deleteComplaint = async (req, res) => {
     res.json({ success: true, message: 'Complaint deleted.' });
   } catch (error) {
     console.error('[Complaints DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete complaint.' });
+    res.status(400).json({ success: false, message: 'Failed to delete complaint.' });
   }
 };
 
@@ -363,7 +363,7 @@ const getNotices = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Notices GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch notices.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch notices.' });
   }
 };
 
@@ -381,7 +381,7 @@ const createNotice = async (req, res) => {
     res.status(201).json({ success: true, message: 'Notice published.', id: result.insertId });
   } catch (error) {
     console.error('[Notices POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to create notice.' });
+    res.status(400).json({ success: false, message: 'Failed to create notice.' });
   }
 };
 
@@ -395,7 +395,7 @@ const updateNotice = async (req, res) => {
     res.json({ success: true, message: 'Notice updated.' });
   } catch (error) {
     console.error('[Notices PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update notice.' });
+    res.status(400).json({ success: false, message: 'Failed to update notice.' });
   }
 };
 
@@ -407,7 +407,7 @@ const deleteNotice = async (req, res) => {
     res.json({ success: true, message: 'Notice deleted.' });
   } catch (error) {
     console.error('[Notices DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete notice.' });
+    res.status(400).json({ success: false, message: 'Failed to delete notice.' });
   }
 };
 
@@ -422,7 +422,7 @@ const getEvents = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Events GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch events.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch events.' });
   }
 };
 
@@ -439,7 +439,7 @@ const createEvent = async (req, res) => {
     res.status(201).json({ success: true, message: 'Event created.', id: result.insertId });
   } catch (error) {
     console.error('[Events POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to create event.' });
+    res.status(400).json({ success: false, message: 'Failed to create event.' });
   }
 };
 
@@ -456,7 +456,7 @@ const updateEvent = async (req, res) => {
     res.json({ success: true, message: 'Event updated.' });
   } catch (error) {
     console.error('[Events PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update event.' });
+    res.status(400).json({ success: false, message: 'Failed to update event.' });
   }
 };
 
@@ -468,7 +468,7 @@ const deleteEvent = async (req, res) => {
     res.json({ success: true, message: 'Event deleted.' });
   } catch (error) {
     console.error('[Events DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete event.' });
+    res.status(400).json({ success: false, message: 'Failed to delete event.' });
   }
 };
 
@@ -483,7 +483,7 @@ const getStaff = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Staff GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch staff.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch staff.' });
   }
 };
 
@@ -500,7 +500,7 @@ const createStaff = async (req, res) => {
     res.status(201).json({ success: true, message: 'Staff member added.', id: result.insertId });
   } catch (error) {
     console.error('[Staff POST]', error);
-    res.status(500).json({ success: false, message: 'Failed to add staff member.' });
+    res.status(400).json({ success: false, message: 'Failed to add staff member.' });
   }
 };
 
@@ -517,7 +517,7 @@ const updateStaff = async (req, res) => {
     res.json({ success: true, message: 'Staff member updated.' });
   } catch (error) {
     console.error('[Staff PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update staff member.' });
+    res.status(400).json({ success: false, message: 'Failed to update staff member.' });
   }
 };
 
@@ -529,7 +529,7 @@ const deleteStaff = async (req, res) => {
     res.json({ success: true, message: 'Staff member removed.' });
   } catch (error) {
     console.error('[Staff DELETE]', error);
-    res.status(500).json({ success: false, message: 'Failed to delete staff member.' });
+    res.status(400).json({ success: false, message: 'Failed to delete staff member.' });
   }
 };
 
@@ -549,7 +549,7 @@ const getMembers = async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Members GET]', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch members.' });
+    res.status(400).json({ success: false, message: 'Failed to fetch members.' });
   }
 };
 
@@ -585,7 +585,7 @@ const updateMemberStatus = async (req, res) => {
     res.json({ success: true, message: 'Member status updated and synced.' });
   } catch (error) {
     console.error('[Members Status PUT]', error);
-    res.status(500).json({ success: false, message: 'Failed to update member status.' });
+    res.status(400).json({ success: false, message: 'Failed to update member status.' });
   }
 };
 

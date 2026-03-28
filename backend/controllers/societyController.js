@@ -99,8 +99,9 @@ class SocietyController {
   // NEW FLOW: saves pending record only — no DB creation yet
   // ─────────────────────────────────────────────────────────────
   async register(req, res) {
-    const connection = await pool.getConnection();
+    let connection;
     try {
+      connection = await pool.getConnection();
       console.log(`[Society:Register] New attempt for ${req.body.society_name} (Requested: ${req.body.subdomain})`);
 
       const {
@@ -172,13 +173,18 @@ class SocietyController {
       res.status(201).json({
         success: true,
         message: 'Registration Submitted',
-        data: 'Your society is pending activation. Our admin will verify your details.'
+        society: {
+          id: socRes.insertId,
+          name: society_name,
+          requested_subdomain,
+          requested_url: `${requested_subdomain}.${process.env.BASE_DOMAIN || process.env.MAIN_DOMAIN || 'automytee.in'}`
+        }
       });
 
     } catch (error) {
       if (connection) await connection.rollback();
       console.error('[Society:Register Exception]:', error);
-      res.status(error.message.includes('already') ? 400 : 500).json({
+      res.status(400).json({
         success: false,
         message: 'Registration Failed',
         error: error.message || 'A system error occurred during registration.'

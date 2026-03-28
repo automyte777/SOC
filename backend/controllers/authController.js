@@ -107,10 +107,10 @@ class AuthController {
 
     } catch (error) {
       console.error('[Auth:Login Exception]:', error);
-      res.status(500).json({
+      res.status(400).json({
         success: false,
         message: 'Login Failed',
-        error: error.message || 'An unexpected error occurred.'
+        error: error.message || 'An unexpected error occurred during login.'
       });
     }
   }
@@ -211,10 +211,10 @@ class AuthController {
 
     } catch (e) {
       console.error('[Auth:Signup Exception]:', e);
-      res.status(500).json({ 
+      res.status(400).json({ 
         success: false, 
         message: 'Registration Failed', 
-        error: e.message || 'A database error occurred.' 
+        error: e.message || 'A system error occurred during registration.' 
       });
     }
   }

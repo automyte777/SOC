@@ -26,21 +26,8 @@ import PrivateRoute from './components/PrivateRoute';
 import RoleRoute from './components/RoleRoute';
 
 import { getUser } from './utils/auth';
+import { getSubdomainFromHost } from './utils/domain';
 
-// Helper to detect if we are on a tenant subdomain
-const getSubdomain = () => {
-  const hostname = window.location.hostname;
-  const parts = hostname.split('.');
-  
-  if (hostname === 'localhost' || hostname === 'automytee.in') return null;
-  
-  if (hostname.includes('localhost') && parts.length >= 2) {
-    return parts[0];
-  }
-  
-  if (parts.length > 2) return parts[0];
-  return null;
-};
 
 // Auto-redirect mapping based on role
 const RoleBasedRedirect = () => {
@@ -66,7 +53,7 @@ function App() {
   const [subdomain, setSubdomain] = useState(null);
 
   useEffect(() => {
-    setSubdomain(getSubdomain());
+    setSubdomain(getSubdomainFromHost());
   }, []);
 
   return (

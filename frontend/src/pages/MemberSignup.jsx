@@ -5,6 +5,7 @@ import {
   Building2, User, Mail, Phone, Lock, Hash, MapPin, 
   Loader2, AlertCircle, Eye, EyeOff, ChevronRight, CheckCircle2
 } from 'lucide-react';
+import { MAIN_DOMAIN, getSubdomainFromHost } from '../utils/domain';
 
 export default function MemberSignup() {
   const navigate = useNavigate();
@@ -28,12 +29,11 @@ export default function MemberSignup() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  // Auto-detect subdomain
+  // Auto-detect subdomain from URL (e.g. somnath.automytee.in)
   useEffect(() => {
-    const hostname = window.location.hostname;
-    const parts = hostname.split('.');
-    if (hostname !== 'localhost' && hostname !== 'automytee.in' && (!hostname.includes('localhost') || parts.length >= 3)) {
-      setFormData(prev => ({ ...prev, subdomain: parts[0] }));
+    const detected = getSubdomainFromHost();
+    if (detected) {
+      setFormData(prev => ({ ...prev, subdomain: detected }));
     }
   }, []);
 
@@ -136,7 +136,7 @@ export default function MemberSignup() {
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 focus:bg-white"
                   placeholder="greenpark"
                 />
-                <span className="ml-3 text-slate-400 font-bold text-sm">.automytee.in</span>
+                <span className="ml-3 text-slate-400 font-bold text-sm">.{MAIN_DOMAIN}</span>
               </div>
             </div>
           </div>

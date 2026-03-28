@@ -65,7 +65,7 @@ class MasterAdminController {
       });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, message: 'Failed to fetch dashboard stats' });
+      res.status(400).json({ success: false, message: 'Failed to fetch dashboard stats' });
     }
   }
 
@@ -88,7 +88,7 @@ class MasterAdminController {
       `);
       res.json({ success: true, count: rows.length, societies: rows });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Failed to fetch societies.' });
+      res.status(400).json({ success: false, message: 'Failed to fetch societies.' });
     }
   }
 
@@ -108,15 +108,16 @@ class MasterAdminController {
       `);
       res.json({ success: true, count: rows.length, societies: rows });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Failed to fetch pending societies.' });
+      res.status(400).json({ success: false, message: 'Failed to fetch pending societies.' });
     }
   }
 
   async setSocietyStatus(req, res) {
     const { id, action } = req.params; // action = suspend, activate, approve, reject
-    const connection = await pool.getConnection();
+    let connection;
 
     try {
+      connection = await pool.getConnection();
       await connection.beginTransaction();
 
       const [rows] = await connection.query(`SELECT s.*, u.name AS admin_name, u.email AS admin_email, u.phone as admin_phone, u.password_hash FROM societies s LEFT JOIN users u ON u.society_id = s.id WHERE s.id = ?`, [id]);
@@ -133,7 +134,7 @@ class MasterAdminController {
       if (action === 'approve' && society.status !== 'approved') {
         const finalSubdomain = society.requested_subdomain;
         const databaseName = `society_${id}_db`;
-        const fullDomain = `${finalSubdomain}.${process.env.MAIN_DOMAIN || 'automytee.in'}`;
+        const fullDomain = `${finalSubdomain}.${process.env.BASE_DOMAIN || process.env.MAIN_DOMAIN || 'automytee.in'}`;
 
         await databaseCreator.createSocietyDatabase(id, {
           name: society.admin_name, email: society.admin_email, phone: society.admin_phone, password_hash: society.password_hash
@@ -152,9 +153,9 @@ class MasterAdminController {
       res.json({ success: true, message: `Society status updated to ${newStatus}.` });
     } catch (error) {
       if (connection) await connection.rollback();
-      res.status(500).json({ success: false, message: error.message });
+      res.status(400).json({ success: false, message: error.message || 'Status update failed.' });
     } finally {
-      connection.release();
+      if (connection) connection.release();
     }
   }
 
@@ -177,14 +178,15 @@ class MasterAdminController {
       
       res.json({ success: true, message: 'Society deleted permanently.' });
     } catch (error) {
-       res.status(500).json({ success: false, message: error.message });
+       res.status(400).json({ success: false, message: error.message });
     }
   }
 
   async createDirectly(req, res) {
     const { society_name, subdomain, admin_name, admin_email, password } = req.body;
-    const connection = await pool.getConnection();
+    let connection;
     try {
+      connection = await pool.getConnection();
       await connection.beginTransaction();
 
       const [dup] = await connection.query('SELECT id FROM societies WHERE subdomain = ?', [subdomain]);
@@ -199,7 +201,7 @@ class MasterAdminController {
       
       const socId = socRes.insertId;
       const dbName = `society_${socId}_db`;
-      const fullDomain = `${subdomain}.${process.env.MAIN_DOMAIN || 'automytee.in'}`;
+      const fullDomain = `${subdomain}.${process.env.BASE_DOMAIN || process.env.MAIN_DOMAIN || 'automytee.in'}`;
 
       await connection.query(`UPDATE societies SET database_name = ? WHERE id = ?`, [dbName, socId]);
       await connection.query(`INSERT INTO users (society_id, name, email, phone, password_hash, role) VALUES (?, ?, ?, '000000', ?, 'society_admin')`, [socId, admin_name, admin_email, password_hash]);
@@ -212,9 +214,9 @@ class MasterAdminController {
       res.json({ success: true, message: 'Society created & active.' });
     } catch (e) {
       if (connection) await connection.rollback();
-      res.status(500).json({ success: false, message: e.message });
+      res.status(400).json({ success: false, message: e.message || 'Action failed.' });
     } finally {
-      connection.release();
+      if (connection) connection.release();
     }
   }
 
@@ -237,7 +239,7 @@ class MasterAdminController {
 
       res.json({ success: true, users: allUsers });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Failed fetching users' });
+      res.status(400).json({ success: false, message: 'Failed fetching users' });
     }
   }
 
@@ -248,7 +250,7 @@ class MasterAdminController {
       await logAudit('User Toggled', `${action} user ${userId} in ${dbName}.`);
       res.json({ success: true, message: 'User status successfully changed.'});
     } catch (e) {
-      res.status(500).json({ success: false, message: e.message });
+      res.status(400).json({ success: false, message: e.message });
     }
   }
 
@@ -295,7 +297,7 @@ class MasterAdminController {
       });
 
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -307,7 +309,7 @@ class MasterAdminController {
       const [logs] = await pool.query('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 200');
       res.json({ success: true, logs });
     } catch (e) {
-       res.status(500).json({ success: false });
+       res.status(400).json({ success: false });
     }
   }
   // ─────────────────────────────────────────────────────────────
@@ -318,7 +320,7 @@ class MasterAdminController {
       const [plans] = await pool.query('SELECT * FROM plans');
       res.json({ success: true, plans });
     } catch (e) {
-      res.status(500).json({ success: false, message: e.message });
+      res.status(400).json({ success: false, message: e.message });
     }
   }
 
@@ -333,7 +335,7 @@ class MasterAdminController {
       await logAudit('Plan Updated', `Plan ${id} updated to ${name}`);
       res.json({ success: true, message: 'Plan updated successfully' });
     } catch (e) {
-      res.status(500).json({ success: false, message: e.message });
+      res.status(400).json({ success: false, message: e.message });
     }
   }
 
@@ -349,7 +351,7 @@ class MasterAdminController {
       `);
       res.json({ success: true, payments });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 
@@ -363,7 +365,7 @@ class MasterAdminController {
       await logAudit('Manual Payment Added', `Added ${amount} for society ${society_id}. Status: ${status}`);
       res.json({ success: true, message: 'Payment recorded.' });
     } catch (e) {
-      res.status(500).json({ success: false, message: e.message });
+      res.status(400).json({ success: false, message: e.message });
     }
   }
 
@@ -375,7 +377,7 @@ class MasterAdminController {
       const [tickets] = await pool.query('SELECT t.*, s.name as society_name FROM support_tickets t JOIN societies s ON t.society_id = s.id ORDER BY t.created_at DESC');
       res.json({ success: true, tickets });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 
@@ -387,7 +389,7 @@ class MasterAdminController {
       await logAudit('Ticket Updated', `Ticket ${id} status moved to ${status}`);
       res.json({ success: true, message: 'Ticket status updated.' });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 
@@ -400,7 +402,7 @@ class MasterAdminController {
       const dbNames = dbs.map(d => Object.values(d)[0]);
       res.json({ success: true, databases: dbNames });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 
@@ -410,7 +412,7 @@ class MasterAdminController {
       await logAudit('Manual Backup Initiated', `Backup triggered for ${dbName}`);
       res.json({ success: true, message: `Backup process started for ${dbName}.` });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 
@@ -422,7 +424,7 @@ class MasterAdminController {
       const [settings] = await pool.query('SELECT * FROM global_settings');
       res.json({ success: true, settings });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 
@@ -435,7 +437,7 @@ class MasterAdminController {
       );
       res.json({ success: true, message: 'Setting updated' });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 
@@ -451,7 +453,7 @@ class MasterAdminController {
       );
       res.json({ success: true, message: 'Announcement broadcasted' });
     } catch (e) {
-      res.status(500).json({ success: false });
+      res.status(400).json({ success: false });
     }
   }
 

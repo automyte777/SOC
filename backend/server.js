@@ -4,10 +4,44 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.MAIN_DOMAIN || 'automytee.in';
 
-app.set('trust proxy', 1); // Fix Express-Rate-Limit crash behind proxy/localhost
-app.use(cors());
-app.use(express.json());
+app.set('trust proxy', 1); // Required for rate-limit + correct IP behind Vercel/proxies
+
+// ── Production-Safe CORS ─────────────────────────────────────────
+const allowedOrigins = [
+  `https://${BASE_DOMAIN}`,
+  `https://www.${BASE_DOMAIN}`,
+  /^https:\/\/[a-z0-9-]+\.automytee\.in$/,   // *.automytee.in subdomains
+  /^http:\/\/localhost(:\d+)?$/,               // local dev (any port)
+  /^http:\/\/[a-z0-9-]+\.localhost(:\d+)?$/,  // subdomain.localhost dev
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (Postman, mobile apps, Vercel SSR)
+    if (!origin) return callback(null, true);
+    const allowed = allowedOrigins.some((o) =>
+      typeof o === 'string' ? o === origin : o.test(origin)
+    );
+    if (allowed) return callback(null, true);
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    return callback(new Error(`CORS policy: origin ${origin} not allowed`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 'Authorization',
+    'X-Master-Secret', 'X-Forwarded-Host',
+    'X-Requested-With'
+  ],
+}));
+
+// Handle OPTIONS preflight consistently
+app.options('*', cors());
+
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 const societyRoutes   = require('./routes/society');
 const authRoutes      = require('./routes/authRoutes');
@@ -16,39 +50,50 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const adminRoutes     = require('./routes/adminRoutes');
 const masterRoutes    = require('./routes/masterRoutes');
 const memberRoutes    = require('./routes/memberRoutes');
-const publicRoutes    = require('./routes/publicRoutes'); // Added publicRoutes require
+const publicRoutes    = require('./routes/publicRoutes');
 
 const authenticateToken = require('./middleware/auth');
 const tenantResolver    = require('./middleware/tenantResolver');
 
 const { initMasterDB } = require('./database/init');
 
-// Initialize master database schema & run migrations
-initMasterDB();
+// Initialize master database schema & run migrations (non-fatal in serverless)
+initMasterDB().catch(err => console.error('[Boot] DB init warning:', err.message));
 
 // Apply tenant resolution globally (before all routes)
 app.use(tenantResolver);
 
-// ── API Routes ───────────────────────────────────────────────────
-app.use('/api/society',    societyRoutes);    // register + check-subdomain
-app.use('/api/auth',       authRoutes);       // login
-app.use('/api/tenant',     tenantRoutes);     // tenant-scoped generic data
-app.use('/api/dashboard',  dashboardRoutes);  // stats / charts
-app.use('/api/admin',      adminRoutes);      // admin CRUD (residents, flats, etc.)
-app.use('/api/master',     masterRoutes);     // master admin (approve/reject)
-app.use('/api/member',     memberRoutes);     // non-admin role endpoints
-app.use('/api/public',     publicRoutes);     // public endpoints without Auth
+// ── API Routes ────────────────────────────────────────────────────
+app.use('/api/society',    societyRoutes);
+app.use('/api/auth',       authRoutes);
+app.use('/api/tenant',     tenantRoutes);
+app.use('/api/dashboard',  dashboardRoutes);
+app.use('/api/admin',      adminRoutes);
+app.use('/api/master',     masterRoutes);
+app.use('/api/member',     memberRoutes);
+app.use('/api/public',     publicRoutes);
 
 // Health check
 app.get('/', (req, res) => {
-  res.send('SmartSOC Multi-Society Management Platform API v2.0');
+  res.json({ status: 'ok', platform: 'SmartSOC API v2.0', domain: BASE_DOMAIN });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  if (err.message && err.message.startsWith('CORS')) {
+    return res.status(403).json({ success: false, message: err.message });
+  }
+  console.error('[Unhandled Error]:', err);
+  res.status(500).json({ success: false, message: 'Internal server error.' });
 });
 
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
-    console.log(`   Domain: ${process.env.MAIN_DOMAIN || 'automytee.in'}`);
+    console.log(`   Base Domain : ${BASE_DOMAIN}`);
+    console.log(`   Wildcard    : *.${BASE_DOMAIN}`);
   });
 }
 
 module.exports = app;
+

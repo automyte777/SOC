@@ -6,6 +6,7 @@ import {
   CreditCard, Package, Headphones, Settings as ConfigIcon, Database, Send, Tag, PenSquare, Play, XCircle, HardDrive, Menu, X
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { MAIN_DOMAIN, buildSubdomainUrl } from '../utils/domain';
 
 export default function MasterAdminDashboard() {
   const [secret, setSecret] = useState(localStorage.getItem('master_secret') || '');
@@ -114,10 +115,7 @@ export default function MasterAdminDashboard() {
         const currentHostname = window.location.hostname;
         const subdomain = soc.subdomain || soc.requested_subdomain;
         if (currentHostname !== 'localhost' && !currentHostname.includes('localhost')) {
-          const protocol = window.location.protocol;
-          const port = window.location.port ? `:${window.location.port}` : '';
-          const mainDomain = currentHostname.split('.').length >= 2 ? currentHostname.split('.').slice(-2).join('.') : currentHostname;
-          window.location.href = `${protocol}//${subdomain}.${mainDomain}${port}${res.data.dashboardPath}`;
+          window.location.href = buildSubdomainUrl(subdomain, res.data.dashboardPath);
         } else {
           localStorage.setItem('current_subdomain', subdomain);
           window.location.href = res.data.dashboardPath;
@@ -286,8 +284,9 @@ export default function MasterAdminDashboard() {
                                     <tr key={soc.id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <p className="font-bold text-slate-900">{soc.name}</p>
-                                            <p className="text-[10px] text-blue-600 font-mono">{soc.subdomain}.auto.in</p>
-                                        </td>
+                                            {soc.subdomain && (
+                                            <p className="text-[10px] text-blue-600 font-mono">{soc.subdomain}.{MAIN_DOMAIN}</p>
+                                          )}</td>
                                         <td className="px-6 py-4 font-mono text-xs text-slate-500">{soc.database_name}</td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`px-2 py-1 rounded-full font-black text-[10px] uppercase tracking-wider ${soc.status==='approved'?'bg-emerald-100 text-emerald-800':soc.status==='pending'?'bg-blue-100 text-blue-800':'bg-red-100 text-red-800'}`}>{soc.status}</span>

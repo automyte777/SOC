@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, ArrowRight, Building2 } from 'lucide-react';
+import { MAIN_DOMAIN, buildSubdomainUrl, getSubdomainFromHost } from '../utils/domain';
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -31,12 +32,8 @@ export default function Onboarding() {
       const currentHostname = window.location.hostname;
 
       // Production: redirect to society subdomain
-      if (subdomain && currentHostname !== 'localhost' && !currentHostname.includes('localhost')) {
-        const port = window.location.port ? `:${window.location.port}` : '';
-        const protocol = window.location.protocol;
-        const parts = currentHostname.split('.');
-        const mainDomain = parts.length >= 2 ? parts.slice(-2).join('.') : currentHostname;
-        window.location.href = `${protocol}//${subdomain}.${mainDomain}${port}/dashboard`;
+      if (subdomain && getSubdomainFromHost() === null && currentHostname !== 'localhost') {
+        window.location.href = buildSubdomainUrl(subdomain, '/dashboard');
         return;
       }
 
@@ -90,7 +87,7 @@ export default function Onboarding() {
           <div className="mb-6 bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">
             <p className="text-xs text-blue-500 font-semibold uppercase tracking-wider mb-1">Your Society URL</p>
             <p className="font-bold text-blue-700 text-sm break-all">
-              {userData.subdomain}.platform.com
+              {userData.subdomain}.{MAIN_DOMAIN}
             </p>
           </div>
         )}
