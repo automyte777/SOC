@@ -13,11 +13,12 @@ const tenantResolver = async (req, res, next) => {
 
   console.log(`[TenantResolver] Resolving for host: ${hostname}`);
 
-  // 1. Skip resolution for main domain or localhost (base platform access)
+  // 1. Skip resolution for main domain, localhost, or Vercel deployments
   if (
     hostname === mainDomain ||
     hostname === 'localhost' ||
-    hostname.includes('localhost')
+    hostname.includes('localhost') ||
+    hostname.endsWith('.vercel.app')
   ) {
     return next();
   }
