@@ -43,6 +43,9 @@ router.get('/my-maintenance', isMember, memCtrl.getMyMaintenance);
 router.get('/my-complaints', isMember, memCtrl.getMyComplaints);
 router.post('/my-complaints', isMember, memCtrl.createMyComplaint);
 router.get('/my-vehicles', isMember, memCtrl.getMyVehicles);
+router.post('/my-vehicles', isMember, memCtrl.createMyVehicle);
+router.put('/my-vehicles/:id', isMember, memCtrl.updateMyVehicle);
+router.delete('/my-vehicles/:id', isMember, memCtrl.deleteMyVehicle);
 
 // Notifications
 router.get('/notifications', isMember, memCtrl.getMyNotifications);

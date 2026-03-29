@@ -59,4 +59,7 @@ router.delete('/staff/:id', ctrl.deleteStaff);
 router.get('/members', ctrl.getMembers);
 router.put('/members/:id/status', ctrl.updateMemberStatus);
 
+// ── PARKING ────────────────────────────────────────────────
+router.get('/parking', ctrl.getParking);
+
 module.exports = router;

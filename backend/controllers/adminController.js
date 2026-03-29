@@ -589,6 +589,26 @@ const updateMemberStatus = async (req, res) => {
   }
 };
 
+// ══════════════════════════════════════════
+// PARKING
+// ══════════════════════════════════════════
+const getParking = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const [rows] = await db.query(
+      `SELECT v.id, v.vehicle_number, v.vehicle_type, v.owner_name as vehicle_name, f.flat_number 
+       FROM vehicles v
+       LEFT JOIN flats f ON v.flat_id = f.id
+       ORDER BY v.created_at DESC`
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('[Parking GET]', error);
+    res.status(400).json({ success: false, message: 'Failed to fetch parking records.' });
+  }
+};
+
 module.exports = {
   // Residents
   getResidents, createResident, updateResident, deleteResident,
@@ -608,4 +628,6 @@ module.exports = {
   getStaff, createStaff, updateStaff, deleteStaff,
   // Members
   getMembers, updateMemberStatus,
+  // Parking
+  getParking,
 };

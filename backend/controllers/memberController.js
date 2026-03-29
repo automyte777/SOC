@@ -259,13 +259,68 @@ exports.getMyVehicles = async (req, res) => {
 
     const [u] = await db.query('SELECT flat_number FROM users WHERE id = ?', [user_id]);
     const [rows] = await db.query(
-      'SELECT * FROM parking WHERE flat_id = (SELECT id FROM flats WHERE flat_number = ? LIMIT 1)',
+      'SELECT id, vehicle_number, vehicle_type, owner_name as vehicle_name FROM vehicles WHERE flat_id = (SELECT id FROM flats WHERE flat_number = ? LIMIT 1)',
       [u[0]?.flat_number]
     );
     res.json({ success: true, data: rows });
   } catch (e) {
     // If vehicles table not found, return empty
+    console.error('[getMyVehicles error]', e);
     res.json({ success: true, data: [] });
+  }
+};
+
+exports.createMyVehicle = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { vehicle_name, vehicle_number, vehicle_type } = req.body;
+    const { user_id } = req.user;
+    
+    if (!vehicle_number) return res.status(400).json({ success: false, message: 'Vehicle number is required.' });
+
+    const [u] = await db.query('SELECT flat_number FROM users WHERE id = ?', [user_id]);
+    const [f] = await db.query('SELECT id FROM flats WHERE flat_number = ?', [u[0]?.flat_number]);
+    const flat_id = f[0]?.id || null;
+
+    if (!flat_id) return res.status(400).json({ success: false, message: 'Your flat is not fully registered yet.' });
+
+    const [result] = await db.query(
+      'INSERT INTO vehicles (flat_id, vehicle_number, vehicle_type, owner_name) VALUES (?, ?, ?, ?)',
+      [flat_id, vehicle_number, vehicle_type || 'car', vehicle_name || null]
+    );
+    res.status(201).json({ success: true, message: 'Vehicle added.' });
+  } catch (e) {
+    console.error('[createMyVehicle]', e);
+    res.status(500).json({ success: false, message: 'Server error adding vehicle' });
+  }
+};
+
+exports.updateMyVehicle = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { vehicle_name, vehicle_number, vehicle_type } = req.body;
+    await db.query(
+      'UPDATE vehicles SET vehicle_number=?, vehicle_type=?, owner_name=? WHERE id=?',
+      [vehicle_number, vehicle_type || 'car', vehicle_name || null, req.params.id]
+    );
+    res.json({ success: true, message: 'Vehicle updated.' });
+  } catch (e) {
+    console.error('[updateMyVehicle]', e);
+    res.status(500).json({ success: false, message: 'Server error updating vehicle' });
+  }
+};
+
+exports.deleteMyVehicle = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    await db.query('DELETE FROM vehicles WHERE id=?', [req.params.id]);
+    res.json({ success: true, message: 'Vehicle removed.' });
+  } catch (e) {
+    console.error('[deleteMyVehicle]', e);
+    res.status(500).json({ success: false, message: 'Server error removing vehicle' });
   }
 };
 
