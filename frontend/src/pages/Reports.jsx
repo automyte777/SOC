@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Download, Loader2, ArrowRight } from 'lucide-react';
 import PageLayout from '../components/PageLayout';
-import api from '../utils/api';
+import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function Reports() {
@@ -17,9 +17,9 @@ export default function Reports() {
       try {
         setLoading(true);
         const [complaintsRes, visitorsRes, maintenanceRes] = await Promise.all([
-          api.get('/admin/complaints').catch(() => ({ data: { data: [] } })),
-          api.get('/admin/visitors').catch(() => ({ data: { data: [] } })),
-          api.get('/admin/maintenance').catch(() => ({ data: { data: [] } }))
+          axios.get('/api/admin/complaints').catch(() => ({ data: { data: [] } })),
+          axios.get('/api/admin/visitors').catch(() => ({ data: { data: [] } })),
+          axios.get('/api/admin/maintenance').catch(() => ({ data: { data: [] } }))
         ]);
         
         setComplaintData(Array.isArray(complaintsRes.data.data) ? complaintsRes.data.data : []);
