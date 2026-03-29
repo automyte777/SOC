@@ -21,6 +21,8 @@ import Notices from './pages/Notices';
 import Events from './pages/Events';
 import Staff from './pages/Staff';
 import Parking from './pages/Parking';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 import PrivateRoute from './components/PrivateRoute';
 import RoleRoute from './components/RoleRoute';
@@ -99,6 +101,8 @@ function App() {
             <Route path="/members" element={<Members />} />
             <Route path="/residents" element={<Residents />} />
             <Route path="/staff" element={<Staff />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           {/* Owner Dashboard */}
