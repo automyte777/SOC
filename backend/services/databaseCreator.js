@@ -32,6 +32,10 @@ class DatabaseCreator {
           id INT AUTO_INCREMENT PRIMARY KEY,
           flat_number VARCHAR(50) NOT NULL,
           building VARCHAR(100),
+          block VARCHAR(50) NULL,
+          flat_type VARCHAR(50) NULL,
+          floor INT NULL,
+          area INT NULL,
           owner_name VARCHAR(255),
           status ENUM('occupied', 'vacant', 'pending_verification') DEFAULT 'vacant',
           created_by VARCHAR(50) DEFAULT 'admin',
@@ -97,6 +101,9 @@ class DatabaseCreator {
           amount DECIMAL(10, 2) NOT NULL,
           due_date DATE,
           status ENUM('pending', 'paid') DEFAULT 'pending',
+          billing_month VARCHAR(20) NULL,
+          paid_amount DECIMAL(10, 2) DEFAULT 0,
+          paid_at TIMESTAMP NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE CASCADE
         );
@@ -116,8 +123,11 @@ class DatabaseCreator {
           description TEXT,
           status ENUM('open', 'in-progress', 'resolved') DEFAULT 'open',
           priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
+          category VARCHAR(100) NULL,
+          created_by INT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE CASCADE
+          FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE CASCADE,
+          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS staff (
@@ -154,6 +164,17 @@ class DatabaseCreator {
           company VARCHAR(100),
           flat_id INT,
           status ENUM('delivered', 'pending', 'denied') DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS vehicles (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          flat_id INT NOT NULL,
+          vehicle_number VARCHAR(50) NOT NULL,
+          vehicle_type ENUM('2-wheeler', '4-wheeler') NOT NULL,
+          owner_name VARCHAR(255),
+          parking_slot VARCHAR(50),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE CASCADE
         );
