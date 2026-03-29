@@ -53,6 +53,7 @@ const adminRoutes     = require('./routes/adminRoutes');
 const masterRoutes    = require('./routes/masterRoutes');
 const memberRoutes    = require('./routes/memberRoutes');
 const publicRoutes    = require('./routes/publicRoutes');
+const staffRoutes     = require('./routes/staffRoutes');
 
 const authenticateToken = require('./middleware/auth');
 const tenantResolver    = require('./middleware/tenantResolver');
@@ -77,6 +78,7 @@ app.use('/api/admin',      adminRoutes);
 app.use('/api/master',     masterRoutes);
 app.use('/api/member',     memberRoutes);
 app.use('/api/public',     publicRoutes);
+app.use('/api/staff',      staffRoutes);    // Staff auth + operations
 
 // Health check
 app.get('/', (req, res) => {

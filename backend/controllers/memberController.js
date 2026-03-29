@@ -71,9 +71,31 @@ exports.updateVisitorStatus = async (req, res) => {
     if (!db) return;
     const { id } = req.params;
     const { status } = req.body;
-    await db.query('UPDATE visitors SET status = ? WHERE id = ?', [status, id]);
-    res.json({ success: true, message: 'Visitor status updated' });
+
+    const valid = ['pending_approval', 'approved', 'rejected', 'entered', 'exited'];
+    if (!valid.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status.' });
+    }
+
+    const updates = { status };
+    if (status === 'exited') updates.exit_time = new Date();
+
+    await db.query('UPDATE visitors SET ? WHERE id = ?', [updates, id]);
+
+    // Notify security via daily_log on approval/rejection
+    if (status === 'approved' || status === 'rejected') {
+      const [v] = await db.query('SELECT visitor_name, flat_id FROM visitors WHERE id = ?', [id]);
+      if (v.length > 0) {
+        await db.query(
+          `INSERT INTO daily_logs (staff_id, log_type, description, flat_id) VALUES (?, 'note', ?, ?)`,
+          [null, `Resident ${status} visitor '${v[0].visitor_name}'`, v[0].flat_id]
+        ).catch(() => {});
+      }
+    }
+
+    res.json({ success: true, message: `Visitor ${status}.` });
   } catch (error) {
+    console.error('[updateVisitorStatus]', error);
     res.status(500).json({ success: false, message: 'Server error updating visitor' });
   }
 };

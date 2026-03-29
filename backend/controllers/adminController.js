@@ -3,6 +3,9 @@
  * All methods require req.tenantDB to be set by tenantResolver middleware.
  */
 
+const bcrypt = require('bcrypt');
+const { generateUsername, generateTempPassword } = require('./staffController');
+
 const getTenantDB = (req, res) => {
   const db = req.tenantDB;
   if (!db) {
@@ -371,14 +374,24 @@ const createNotice = async (req, res) => {
   try {
     const db = getTenantDB(req, res);
     if (!db) return;
-    const { title, description } = req.body;
+    const { title, description, priority = 'normal' } = req.body;
     if (!title) return res.status(400).json({ success: false, message: 'Title is required.' });
     const created_by = req.user?.user_id || null;
     const [result] = await db.query(
-      'INSERT INTO notices (title, description, created_by) VALUES (?, ?, ?)',
-      [title, description || null, created_by]
+      'INSERT INTO notices (title, description, priority, is_broadcast, created_by) VALUES (?, ?, ?, 1, ?)',
+      [title, description || null, priority, created_by]
     );
-    res.status(201).json({ success: true, message: 'Notice published.', id: result.insertId });
+    // Broadcast: notify all approved residents
+    const [residents] = await db.query(
+      `SELECT id FROM users WHERE role IN ('home_owner','home_member','tenant') AND is_approved = 1`
+    );
+    for (const r of residents) {
+      await db.query(
+        `INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)`,
+        [r.id, `📢 Notice: ${title}`, description || title]
+      ).catch(() => {});
+    }
+    res.status(201).json({ success: true, message: `Notice published & broadcast to ${residents.length} residents.`, id: result.insertId });
   } catch (error) {
     console.error('[Notices POST]', error);
     res.status(400).json({ success: false, message: 'Failed to create notice.' });
@@ -479,7 +492,10 @@ const getStaff = async (req, res) => {
   try {
     const db = getTenantDB(req, res);
     if (!db) return;
-    const [rows] = await db.query('SELECT * FROM staff ORDER BY created_at DESC');
+    // Never return password_hash to the frontend
+    const [rows] = await db.query(
+      'SELECT id, name, username, staff_role, role, phone, salary, shift, is_active, created_at FROM staff ORDER BY created_at DESC'
+    );
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[Staff GET]', error);
@@ -491,16 +507,54 @@ const createStaff = async (req, res) => {
   try {
     const db = getTenantDB(req, res);
     if (!db) return;
-    const { name, phone, role, salary, shift } = req.body;
+
+    const { name, phone, role, salary, shift, username: customUsername, password: customPassword } = req.body;
     if (!name || !role) return res.status(400).json({ success: false, message: 'Name and role are required.' });
+
+    // ── Credential generation ──────────────────────────────────────────
+    let username  = customUsername?.trim() || null;
+    let plainPass = customPassword?.trim() || null;
+
+    // Auto-generate username if not provided or empty
+    if (!username) {
+      let attempts = 0;
+      do {
+        username = generateUsername(role);
+        const [exists] = await db.query('SELECT id FROM staff WHERE username = ?', [username]);
+        if (exists.length === 0) break;
+        attempts++;
+      } while (attempts < 10);
+    } else {
+      // Validate uniqueness of custom username
+      const [exists] = await db.query('SELECT id FROM staff WHERE username = ?', [username]);
+      if (exists.length > 0) {
+        return res.status(400).json({ success: false, message: 'Username already taken. Choose a different one.' });
+      }
+    }
+
+    // Auto-generate password if not provided
+    if (!plainPass) plainPass = generateTempPassword();
+
+    const password_hash = await bcrypt.hash(plainPass, 10);
+
     const [result] = await db.query(
-      'INSERT INTO staff (name, phone, role, salary, shift) VALUES (?, ?, ?, ?, ?)',
-      [name, phone || null, role, salary || null, shift || null]
+      `INSERT INTO staff (name, username, password_hash, staff_role, role, phone, salary, shift, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [name.trim(), username, password_hash, role, role, phone || null, salary || null, shift || null]
     );
-    res.status(201).json({ success: true, message: 'Staff member added.', id: result.insertId });
+
+    res.status(201).json({
+      success:  true,
+      message:  'Staff member added with login credentials.',
+      id:       result.insertId,
+      credentials: {
+        username,
+        password: plainPass,  // returned ONCE so secretary can share with staff
+      },
+    });
   } catch (error) {
     console.error('[Staff POST]', error);
-    res.status(400).json({ success: false, message: 'Failed to add staff member.' });
+    res.status(400).json({ success: false, message: error.message || 'Failed to add staff member.' });
   }
 };
 
@@ -509,11 +563,25 @@ const updateStaff = async (req, res) => {
     const db = getTenantDB(req, res);
     if (!db) return;
     const { id } = req.params;
-    const { name, phone, role, salary, shift } = req.body;
-    await db.query(
-      'UPDATE staff SET name=?, phone=?, role=?, salary=?, shift=? WHERE id=?',
-      [name, phone || null, role, salary || null, shift || null, id]
-    );
+    const { name, phone, role, salary, shift, is_active, password: newPassword } = req.body;
+
+    // Build update object dynamically
+    const updates = {
+      name:       name,
+      phone:      phone || null,
+      role:       role,
+      staff_role: role,
+      salary:     salary || null,
+      shift:      shift  || null,
+    };
+    if (is_active !== undefined) updates.is_active = is_active ? 1 : 0;
+
+    // If secretary is resetting the password
+    if (newPassword && newPassword.trim().length >= 4) {
+      updates.password_hash = await bcrypt.hash(newPassword.trim(), 10);
+    }
+
+    await db.query('UPDATE staff SET ? WHERE id = ?', [updates, id]);
     res.json({ success: true, message: 'Staff member updated.' });
   } catch (error) {
     console.error('[Staff PUT]', error);
@@ -609,6 +677,169 @@ const getParking = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════
+// AUDIT LOGS (Secretary view)
+// ═══════════════════════════════════════════════════════════
+const getAuditLogs = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { date, action, page = 1, limit = 100 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const conds = [], params = [];
+    if (date)   { conds.push('DATE(created_at) = ?'); params.push(date); }
+    if (action) { conds.push('action LIKE ?'); params.push(`%${action}%`); }
+    const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+    const [rows] = await db.query(
+      `SELECT * FROM audit_logs ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('[AuditLogs GET]', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch audit logs.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// EMERGENCY ALERTS (Secretary view + acknowledge)
+// ═══════════════════════════════════════════════════════════
+const getEmergencyAlerts = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const [rows] = await db.query(
+      `SELECT ea.*, s.name as raised_by_name FROM emergency_alerts ea
+       LEFT JOIN staff s ON s.id = ea.raised_by
+       ORDER BY ea.created_at DESC LIMIT 50`
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch emergency alerts.' });
+  }
+};
+
+const acknowledgeEmergency = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const userId = req.user?.user_id || null;
+    await db.query(
+      `UPDATE emergency_alerts SET status = 'acknowledged', resolved_by = ? WHERE id = ?`,
+      [userId, req.params.id]
+    );
+    res.json({ success: true, message: 'Alert acknowledged.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to acknowledge alert.' });
+  }
+};
+
+const resolveEmergency = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const userId = req.user?.user_id || null;
+    await db.query(
+      `UPDATE emergency_alerts SET status = 'resolved', resolved_by = ?, resolved_at = NOW() WHERE id = ?`,
+      [userId, req.params.id]
+    );
+    res.json({ success: true, message: 'Alert resolved.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to resolve alert.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// STAFF ATTENDANCE (Secretary marks attendance)
+// ═══════════════════════════════════════════════════════════
+const getAttendance = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { date } = req.query;
+    const attDate = date || new Date().toISOString().split('T')[0];
+    const [rows] = await db.query(
+      `SELECT sa.*, s.name as staff_name, s.staff_role
+       FROM staff_attendance sa
+       LEFT JOIN staff s ON s.id = sa.staff_id
+       WHERE sa.att_date = ?
+       ORDER BY s.name ASC`,
+      [attDate]
+    );
+    // Also fetch all staff not yet marked
+    const [allStaff] = await db.query(
+      `SELECT id, name, staff_role FROM staff WHERE is_active = 1 ORDER BY name ASC`
+    );
+    res.json({ success: true, data: rows, allStaff, date: attDate });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch attendance.' });
+  }
+};
+
+const markAttendance = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { staff_id, status, att_date, notes } = req.body;
+    if (!staff_id || !status) return res.status(400).json({ success: false, message: 'Staff ID and status required.' });
+    const attDate = att_date || new Date().toISOString().split('T')[0];
+    const markedBy = req.user?.user_id || null;
+    await db.query(
+      `INSERT INTO staff_attendance (staff_id, att_date, status, marked_by, notes)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE status = ?, notes = ?, marked_by = ?`,
+      [staff_id, attDate, status, markedBy, notes || null, status, notes || null, markedBy]
+    );
+    res.json({ success: true, message: 'Attendance marked.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to mark attendance.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// STAFF SHIFTS (Secretary view)
+// ═══════════════════════════════════════════════════════════
+const getStaffShifts = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { date, staff_id } = req.query;
+    const conds = [], params = [];
+    if (date)     { conds.push('ss.shift_date = ?'); params.push(date); }
+    if (staff_id) { conds.push('ss.staff_id = ?'); params.push(staff_id); }
+    const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+    const [rows] = await db.query(
+      `SELECT ss.*, s.name as staff_name, s.staff_role FROM staff_shifts ss
+       LEFT JOIN staff s ON s.id = ss.staff_id
+       ${where} ORDER BY ss.shift_date DESC, ss.clock_in DESC LIMIT 200`,
+      params
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch shifts.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// DELIVERIES (Secretary view)
+// ═══════════════════════════════════════════════════════════
+const getDeliveries = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const [rows] = await db.query(
+      `SELECT d.*, f.flat_number, f.building, s.name as received_by_name
+       FROM deliveries d
+       LEFT JOIN flats f ON d.flat_id = f.id
+       LEFT JOIN staff s ON s.id = d.received_by
+       ORDER BY d.received_at DESC LIMIT 200`
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch deliveries.' });
+  }
+};
+
 module.exports = {
   // Residents
   getResidents, createResident, updateResident, deleteResident,
@@ -620,7 +851,7 @@ module.exports = {
   getMaintenance, createMaintenance, updateMaintenance, deleteMaintenance,
   // Complaints
   getComplaints, createComplaint, updateComplaint, deleteComplaint,
-  // Notices
+  // Notices (with broadcast)
   getNotices, createNotice, updateNotice, deleteNotice,
   // Events
   getEvents, createEvent, updateEvent, deleteEvent,
@@ -630,4 +861,10 @@ module.exports = {
   getMembers, updateMemberStatus,
   // Parking
   getParking,
+  // Advanced
+  getAuditLogs,
+  getEmergencyAlerts, acknowledgeEmergency, resolveEmergency,
+  getAttendance, markAttendance,
+  getStaffShifts,
+  getDeliveries,
 };
