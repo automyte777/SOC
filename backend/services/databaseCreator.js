@@ -28,6 +28,16 @@ class DatabaseCreator {
 
       // 2. Define Schema
       const schema = `
+        CREATE TABLE IF NOT EXISTS flats (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          flat_number VARCHAR(50) NOT NULL,
+          building VARCHAR(100),
+          owner_name VARCHAR(255),
+          status ENUM('occupied', 'vacant', 'pending_verification') DEFAULT 'vacant',
+          created_by VARCHAR(50) DEFAULT 'admin',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS users (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
@@ -39,20 +49,12 @@ class DatabaseCreator {
           status ENUM('pending', 'active', 'rejected') DEFAULT 'active',
           flat_number VARCHAR(100),
           block VARCHAR(100),
+          flat_id INT NULL,
           rental_start_date DATE NULL,
           rental_end_date DATE NULL,
           is_primary_owner BOOLEAN DEFAULT FALSE,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS flats (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          flat_number VARCHAR(50) NOT NULL,
-          building VARCHAR(100),
-          owner_name VARCHAR(255),
-          status ENUM('occupied', 'vacant', 'pending_verification') DEFAULT 'vacant',
-          created_by VARCHAR(50) DEFAULT 'admin',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS residents (
