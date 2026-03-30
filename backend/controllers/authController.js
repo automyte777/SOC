@@ -65,43 +65,104 @@ class AuthController {
       }
 
       // 3. User Authentication
+      let user = null;
+      let isStaff = false;
+
+      // Check users (Secretary, Member)
       const [users] = await tenantDB.query('SELECT * FROM users WHERE email = ?', [email]);
-      if (users.length === 0) {
+      if (users.length > 0) {
+        user = users[0];
+      } else {
+        // Fallback to staff authentication
+        const [staff] = await tenantDB.query('SELECT * FROM staff WHERE username = ? AND is_active = 1', [email]);
+        if (staff.length > 0) {
+          user = staff[0];
+          isStaff = true;
+        }
+      }
+
+      if (!user) {
         return res.status(401).json({ success: false, message: 'Invalid Credentials', error: 'User does not exist in this society.' });
       }
 
-      const user = users[0];
+      if (!user.password_hash) {
+        return res.status(401).json({ success: false, message: 'Invalid Credentials', error: 'No password set for this account.' });
+      }
+
       const passwordMatch = await bcrypt.compare(password, user.password_hash);
       if (!passwordMatch) {
         return res.status(401).json({ success: false, message: 'Invalid Credentials', error: 'Incorrect password.' });
       }
 
-      // 4. Status Checks
-      if (!user.is_approved) {
+      // 4. Status Checks for normal residents
+      if (!isStaff && !user.is_approved) {
         return res.status(403).json({ success: false, message: 'Account Not Approved', error: 'Your registration is pending secretary approval.' });
+      }
+
+      // Role and Dashboard resolution
+      let effectiveRole = user.role;
+      let dashboardPath = ROLE_DASHBOARD[user.role] || '/admin/dashboard';
+      let tokenPayload = { 
+        user_id: user.id, 
+        society_id: tenantInfo.id, 
+        role: user.role,
+        user_type: 'member'
+      };
+
+      if (isStaff) {
+        effectiveRole = user.staff_role || user.role || 'Security';
+        
+        const STAFF_ROLE_DASHBOARD = {
+          Security: '/security/dashboard', Manager: '/manager/dashboard',
+          Cleaner: '/staff/dashboard', Gardener: '/staff/dashboard',
+          Plumber: '/staff/dashboard', Electrician: '/staff/dashboard',
+        };
+        dashboardPath = STAFF_ROLE_DASHBOARD[effectiveRole] || '/staff/dashboard';
+
+        tokenPayload = { 
+          staff_id: user.id, 
+          society_id: tenantInfo.id, 
+          role: effectiveRole, 
+          is_staff: true, 
+          username: user.username, 
+          name: user.name,
+          user_type: 'staff',
+          user_id: user.id, // compatibility
+          staff_role: effectiveRole
+        };
+
+        // Staff features: Auto clock-in & Audit logs (Non-blocking)
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          await tenantDB.query(`INSERT IGNORE INTO staff_shifts (staff_id, shift_date, clock_in) VALUES (?, ?, NOW())`, [user.id, today]);
+          await tenantDB.query(`INSERT INTO audit_logs (actor_type, actor_id, actor_name, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?, ?, ?)`, ['staff', user.id, user.name, 'LOGIN', 'staff', user.id, null]);
+        } catch (err) { /* silent catch */ }
       }
 
       // 5. Token Generation
       const token = jwt.sign(
-        { user_id: user.id, society_id: tenantInfo.id, role: user.role },
+        tokenPayload,
         process.env.JWT_SECRET || 'fallback_secret_high_entropy_2025',
         { expiresIn: '24h' }
       );
 
-      console.log(`[Auth:Login] SUCCESS: ${user.email} logged in as ${user.role}`);
+      console.log(`[Auth:Login] SUCCESS: ${isStaff ? user.username : user.email} logged in as ${effectiveRole}`);
 
       res.json({
         success: true,
         message: 'Login successful',
         token,
-        dashboardPath: ROLE_DASHBOARD[user.role] || '/admin/dashboard',
+        dashboardPath,
         user: {
           id: user.id,
           name: user.name,
-          role: user.role,
-          email: user.email,
+          role: effectiveRole,
+          email: user.email || null,
+          username: user.username || null,
           society_name: tenantInfo.name,
-          society_id: tenantInfo.id
+          society_id: tenantInfo.id,
+          user_type: isStaff ? 'staff' : 'member',
+          staff_role: isStaff ? effectiveRole : null
         }
       });
 

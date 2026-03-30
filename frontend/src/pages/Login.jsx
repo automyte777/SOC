@@ -160,16 +160,16 @@ export default function Login({ detectedSubdomain }) {
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
-                Email Address
+                Email or Username
               </label>
               <input
-                type="email"
+                type="text"
                 name="email"
                 required
                 value={formData.email}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white placeholder:text-slate-400"
-                placeholder="john@example.com"
+                placeholder="john@example.com or username"
               />
             </div>
 

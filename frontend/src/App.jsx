@@ -6,7 +6,6 @@ import Signup         from './pages/Signup';
 import MemberSignup   from './pages/MemberSignup';
 import Login          from './pages/Login';
 import Onboarding     from './pages/Onboarding';
-import StaffLogin     from './pages/StaffLogin';
 
 // ── Secretary/Admin Pages ──────────────────────────────────────────────────
 import Dashboard      from './pages/Dashboard';
@@ -90,9 +89,6 @@ function App() {
         <Route path="/signup/member" element={<MemberSignup />} />
         <Route path="/login"         element={<Login detectedSubdomain={subdomain} />} />
         <Route path="/onboarding"    element={<Onboarding />} />
-
-        {/* Staff dedicated login — separate page, no society subdomain required */}
-        <Route path="/staff/login"   element={<StaffLogin />} />
 
         {/* ── Master Admin ─────────────────────────────────────────────── */}
         <Route path="/master-admin"  element={<MasterAdminDashboard />} />
