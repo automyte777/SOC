@@ -21,7 +21,9 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.577.0",
     "mysql2": "^3.19.1",
+    "node-cron": "^4.2.1",
     "postcss": "^8.5.8",
+    "qrcode": "^1.5.4",
     "react-router-dom": "^7.13.1",
     "tailwindcss": "^4.2.1"
   }

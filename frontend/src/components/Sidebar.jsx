@@ -12,6 +12,7 @@ import {
   Car, 
   BarChart3, 
   Settings,
+  Ticket,
   X
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -22,6 +23,7 @@ const allMenuItems = [
   { icon: Building2, label: 'Flats / Units', path: '/flats', roles: ['society_secretary', 'home_owner', 'home_member'] },
   { icon: Users, label: 'Residents', path: '/residents', roles: ['society_secretary'] },
   { icon: UserPlus, label: 'Member Requests', path: '/members', roles: ['society_secretary'] },
+  { icon: Ticket, label: 'Gate Pass', path: '/gatepass', roles: ['society_secretary', 'home_owner', 'home_member', 'tenant'] },
   { icon: UserPlus, label: 'Visitors', path: '/visitors', roles: ['society_secretary', 'home_owner', 'home_member', 'tenant'] },
   { icon: CreditCard, label: 'Maintenance', path: '/maintenance', roles: ['society_secretary', 'home_owner'] },
   { icon: ClipboardList, label: 'Complaints', path: '/complaints', roles: ['society_secretary', 'home_owner', 'home_member', 'tenant'] },

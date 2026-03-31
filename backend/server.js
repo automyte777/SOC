@@ -54,16 +54,19 @@ const masterRoutes    = require('./routes/masterRoutes');
 const memberRoutes    = require('./routes/memberRoutes');
 const publicRoutes    = require('./routes/publicRoutes');
 const staffRoutes     = require('./routes/staffRoutes');
+const gatePassRoutes  = require('./routes/gatePassRoutes'); // Import Gate Pass Routes
 
 const authenticateToken = require('./middleware/auth');
 const tenantResolver    = require('./middleware/tenantResolver');
 
 const { initMasterDB } = require('./database/init');
+const startGatePassCron = require('./services/gatePassCron');
 
 // Initialize master database schema ONLY if not running in production serverless environments
 // Running this during Vercel cold-starts severely slows down the API and causes deadlocks!
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   initMasterDB().catch(err => console.error('[Boot] DB init warning:', err.message));
+  startGatePassCron();
 }
 
 // Apply tenant resolution globally (before all routes)
@@ -79,6 +82,8 @@ app.use('/api/master',     masterRoutes);
 app.use('/api/member',     memberRoutes);
 app.use('/api/public',     publicRoutes);
 app.use('/api/staff',      staffRoutes);    // Staff auth + operations
+app.use('/api/gatepass',   gatePassRoutes); // Gate Pass Operations
+
 
 // Health check
 app.get('/', (req, res) => {

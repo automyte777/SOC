@@ -21,6 +21,7 @@ import Staff          from './pages/Staff';
 import Parking        from './pages/Parking';
 import Reports        from './pages/Reports';
 import Settings       from './pages/Settings';
+import GatePass       from './pages/GatePass';
 
 // ── Resident Dashboards ────────────────────────────────────────────────────
 import HomeOwnerDashboard from './pages/OwnerDashboard';
@@ -109,6 +110,7 @@ function App() {
             <Route path="/notices"     element={<Notices />} />
             <Route path="/events"      element={<Events />} />
             <Route path="/parking"     element={<Parking />} />
+            <Route path="/gatepass"    element={<GatePass />} />
           </Route>
 
           {/* Secretary-only routes */}

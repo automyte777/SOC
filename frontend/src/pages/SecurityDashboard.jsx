@@ -8,6 +8,7 @@ import {
   Bell, Users, DoorOpen, TimerOff, Package, Siren, FileText,
   QrCode, ChevronRight, Activity, Timer,
 } from 'lucide-react';
+import QRScanner from '../components/QRScanner';
 
 const authH = (t) => ({ headers: { Authorization: `Bearer ${t}` } });
 
@@ -162,6 +163,7 @@ export default function SecurityDashboard() {
   const [gpForm,setGpForm] = useState({ flat_id:'', resident_name:'', pass_type:'guest', valid_until:'' });
   const [emForm,setEmForm] = useState({ alert_type:'panic', location:'', description:'' });
   const [qrInput,setQrInput] = useState('');
+  const [qrDetails, setQrDetails] = useState(null);
 
   // ── Fetch ──────────────────────────────────────────────
   const fx = useCallback(async (url, setter) => {
@@ -243,14 +245,30 @@ export default function SecurityDashboard() {
     finally { setSaving(false); }
   };
 
-  const scanQR = async () => {
-    if (!qrInput.trim()) return;
+  const scanQR = async (codeStr) => {
+    const code = typeof codeStr === 'string' ? codeStr : qrInput.trim();
+    if (!code) return;
+    setSaving(true);
+    setQrDetails(null);
+    try {
+      const { data } = await axios.get(`/api/gatepass/verify-pass?code=${code}`, authH(token));
+      setQrDetails(data.data);
+      setQrInput(code);
+    } catch (e) { 
+      alert(`❌ ${e.response?.data?.message || 'Invalid QR'}`); 
+      setQrInput(''); 
+    }
+    finally { setSaving(false); }
+  };
+
+  const confirmEntry = async () => {
+    if (!qrDetails) return;
     setSaving(true);
     try {
-      const { data } = await axios.post('/api/staff/gate-passes/scan', { qr_code: qrInput.trim() }, authH(token));
-      alert(`✅ ${data.message}\nFlat: ${data.data?.flat_number || '—'}\nResident: ${data.data?.resident_name || '—'}`);
-      setScanModal(false); setQrInput(''); fetchGatePasses();
-    } catch (e) { alert(`❌ ${e.response?.data?.message || 'Invalid QR'}`); }
+      const { data } = await axios.post('/api/gatepass/allow-entry', { pass_id: qrDetails.id }, authH(token));
+      alert(`✅ ${data.message}`);
+      setScanModal(false); setQrInput(''); setQrDetails(null); fetchGatePasses(); fetchVisitors();
+    } catch (e) { alert(`❌ ${e.response?.data?.message || 'Failed'}`); }
     finally { setSaving(false); }
   };
 
@@ -662,16 +680,61 @@ export default function SecurityDashboard() {
 
       {/* QR Scan Modal */}
       {scanModal && (
-        <Modal title="📷 Scan Gate Pass QR" onClose={() => setScanModal(false)}>
+        <Modal title="📷 Scan Gate Pass QR" onClose={() => { setScanModal(false); setQrDetails(null); setQrInput(''); }}>
           <div className="space-y-4">
-            <p className="text-sm text-slate-500">Enter the QR code value printed on the gate pass:</p>
-            <Field label="QR Code">
-              <input value={qrInput} onChange={e => setQrInput(e.target.value)} placeholder="GP-1234567890-ABCDEF" className={inp} autoFocus />
-            </Field>
-            <button onClick={scanQR} disabled={saving || !qrInput.trim()}
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}Verify & Allow Entry
-            </button>
+            {!qrDetails ? (
+              <>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden p-2">
+                  <QRScanner onScan={scanQR} onError={(e) => {}} />
+                </div>
+                <div className="text-center text-sm font-bold text-slate-500 uppercase">OR</div>
+                <Field label="Manual QR Code Entry">
+                  <div className="flex gap-2">
+                    <input value={qrInput} onChange={e => setQrInput(e.target.value)} placeholder="GP-1234..." className={inp} />
+                    <button onClick={scanQR} disabled={saving || !qrInput.trim()} className="px-5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50">
+                      {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Fetch'}
+                    </button>
+                  </div>
+                </Field>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-white border-2 border-emerald-500/30 rounded-2xl p-4 text-center">
+                  <div className="inline-flex rounded-full bg-emerald-100 p-2 mb-2">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-wide">{qrDetails.guest_name}</h3>
+                  <p className="text-sm font-bold text-slate-500">{qrDetails.purpose} • {qrDetails.mobile}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">Resident</span>
+                    <span className="font-bold text-slate-700">{qrDetails.member_name || '—'}</span>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">Flat</span>
+                    <span className="font-bold text-indigo-700 text-lg">{qrDetails.flat_number || '—'}</span>
+                  </div>
+                </div>
+                {qrDetails.status !== 'APPROVED' ? (
+                  <div className="bg-red-50 text-red-600 p-3 rounded-xl border border-red-200 text-center font-bold text-sm uppercase tracking-wider">
+                    Pass is {qrDetails.status}
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 text-emerald-600 p-3 rounded-xl border border-emerald-200 text-center font-bold text-sm">
+                    Valid Code • Present at {new Date().toLocaleTimeString()}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-2">
+                  <button onClick={() => { setQrDetails(null); setQrInput(''); }} className="flex-1 py-3 text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl">Scan Another</button>
+                  {qrDetails.status === 'APPROVED' && (
+                    <button onClick={confirmEntry} disabled={saving} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Allow Entry'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
       )}
