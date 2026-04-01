@@ -25,7 +25,7 @@ const allMenuItems = [
   { icon: UserPlus, label: 'Member Requests', path: '/members', roles: ['society_secretary'] },
   { icon: Ticket, label: 'Gate Pass', path: '/gatepass', roles: ['society_secretary', 'home_owner', 'home_member', 'tenant'] },
   { icon: UserPlus, label: 'Visitors', path: '/visitors', roles: ['society_secretary', 'home_owner', 'home_member', 'tenant'] },
-  { icon: CreditCard, label: 'Maintenance', path: '/maintenance', roles: ['society_secretary', 'home_owner'] },
+  { icon: CreditCard, label: 'Maintenance', path: '/maintenance', roles: ['society_secretary', 'home_owner', 'home_member', 'tenant'] },
   { icon: ClipboardList, label: 'Complaints', path: '/complaints', roles: ['society_secretary', 'home_owner', 'home_member', 'tenant'] },
   { icon: Calendar, label: 'Events', path: '/events', roles: ['society_secretary', 'home_owner', 'home_member'] },
   { icon: Megaphone, label: 'Notice Board', path: '/notices', roles: ['society_secretary', 'home_owner', 'home_member'] },

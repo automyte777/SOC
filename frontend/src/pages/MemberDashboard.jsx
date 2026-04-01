@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Home, ClipboardList, Megaphone, Users, 
   Clock, ShieldCheck, AlertTriangle, 
-  Calendar, Car, CheckCircle2, XCircle
+  Calendar, Car, CheckCircle2, XCircle, CreditCard, Info
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
@@ -21,6 +21,9 @@ const MemberDashboard = () => {
   const [complaints, setComplaints] = useState([]);
   const [events, setEvents] = useState([]);
   const [notices, setNotices] = useState([]);
+  const [extraCharges, setExtraCharges] = useState([]);
+  const [mCurrent, setMCurrent] = useState(null);
+  const [mHistory, setMHistory] = useState([]);
 
   const user = getUser();
   const societyName = user?.society_name || 'My Society';
@@ -39,7 +42,9 @@ const MemberDashboard = () => {
         axios.get('/api/member/my-visitors', { headers }),
         axios.get('/api/member/my-complaints', { headers }),
         axios.get('/api/member/events', { headers }),
-        axios.get('/api/member/notices', { headers })
+        axios.get('/api/member/notices', { headers }),
+        axios.get('/api/maintenance/member/my-maintenance', { headers }),
+        axios.get('/api/maintenance/member/my-extra-charges', { headers })
       ]);
 
       if (propRes?.data?.success) setProperty(propRes.data.data);
@@ -48,6 +53,14 @@ const MemberDashboard = () => {
       if (compRes.data.success) setComplaints(compRes.data.data);
       if (evRes.data.success) setEvents(evRes.data.data);
       if (notRes.data.success) setNotices(notRes.data.data);
+      
+      if (mainRes.data?.success) {
+        setMCurrent(mainRes.data.current);
+        setMHistory(mainRes.data.history);
+      }
+      if (ecRes?.data?.success) {
+        setExtraCharges(ecRes.data.data);
+      }
       
     } catch (e) {
       console.error(e);
@@ -74,6 +87,27 @@ const MemberDashboard = () => {
       alert('Failed to update visitor status');
     }
   };
+
+  const handlePayMaintenance = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`/api/maintenance/member/pay-maintenance/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) { alert('Payment simulation failed'); }
+  };
+
+  const handlePayExtra = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`/api/maintenance/member/pay-extra-charge/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) { alert('Payment simulation failed'); }
+  };
+
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -160,30 +194,50 @@ const MemberDashboard = () => {
                 </div>
               </div>
 
-              {/* Complaints List */}
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-indigo-600" />
-                    <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Active Complaint Slips</h2>
-                  </div>
-                  <button className="flex items-center gap-2 px-4 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-full hover:bg-indigo-100 transition-all uppercase">Raise Slip</button>
-                </div>
-                <div className="p-6 space-y-4">
-                  {complaints.length === 0 ? (
-                    <div className="text-center py-6 text-slate-400 text-sm font-medium italic">All smooth!</div>
-                  ) : complaints.map(c => (
-                    <div key={c.id} className="p-4 border border-slate-50 bg-slate-50/30 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">{c.title}</h4>
-                        <p className="text-xs text-slate-400 line-clamp-1">{c.description}</p>
-                      </div>
-                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${
-                        c.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                      }`}>{c.status}</span>
+
+
+              {/* Maintenance & Extra Charges (Member) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="bg-white rounded-3xl border-2 border-indigo-100 shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-8 py-6 bg-indigo-50/20 border-b border-indigo-100 flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <CreditCard className="w-5 h-5 text-indigo-600" />
+                          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Maintenance</h2>
+                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="p-8">
+                       {mCurrent ? (
+                         <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{new Date(mCurrent.month + '-01').toLocaleString('default', { month: 'long' })} Bill</span>
+                               <span className="text-xl font-black text-slate-900">₹{parseFloat(mCurrent.amount).toLocaleString()}</span>
+                            </div>
+                            <div className={`p-4 rounded-2xl flex items-center justify-between ${mCurrent.status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600'}`}>
+                               <span className="text-[10px] font-black uppercase tracking-widest">Status: {mCurrent.status}</span>
+                               {mCurrent.status === 'Pending' && (
+                                 <button onClick={() => handlePayMaintenance(mCurrent.id)} className="px-4 py-1.5 bg-slate-900 text-white text-[9px] font-black rounded-lg uppercase shadow-lg shadow-slate-200">Pay Now</button>
+                               )}
+                            </div>
+                         </div>
+                       ) : <p className="text-center py-4 text-slate-400 text-xs font-bold uppercase tracking-widest italic tracking-tight">No Pending Maintenance</p>}
+                    </div>
+                 </div>
+
+                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+                       <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Extra Dues</h2>
+                    </div>
+                    <div className="p-6 space-y-3">
+                       {extraCharges.length === 0 ? <p className="text-center py-4 text-slate-300 text-[10px] font-black uppercase tracking-widest">NONE</p> : extraCharges.map(ec => (
+                         <div key={ec.assignment_id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                            <span className="text-xs font-bold text-slate-700">{ec.title}</span>
+                            {ec.status === 'Pending' ? (
+                              <button onClick={() => handlePayExtra(ec.assignment_id)} className="text-[9px] font-black text-indigo-600 underline">Pay ₹{parseFloat(ec.amount).toLocaleString()}</button>
+                            ) : <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{ec.status}</span>}
+                         </div>
+                       ))}
+                    </div>
+                 </div>
               </div>
             </div>
 

@@ -23,6 +23,9 @@ const OwnerDashboard = () => {
   const [events, setEvents] = useState([]);
   const [notices, setNotices] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [extraCharges, setExtraCharges] = useState([]);
+  const [mCurrent, setMCurrent] = useState(null);
+  const [mHistory, setMHistory] = useState([]);
 
   // Form states
   const [showAddMember, setShowAddMember] = useState(false);
@@ -56,7 +59,9 @@ const OwnerDashboard = () => {
         axios.get('/api/member/my-complaints', { headers }),
         axios.get('/api/member/events', { headers }),
         axios.get('/api/member/notices', { headers }),
-        axios.get('/api/member/my-vehicles', { headers })
+        axios.get('/api/member/my-vehicles', { headers }),
+        axios.get('/api/maintenance/member/my-maintenance', { headers }),
+        axios.get('/api/maintenance/member/my-extra-charges', { headers })
       ]);
 
       if (propRes?.status === 403 && propRes.data.expired) {
@@ -77,6 +82,22 @@ const OwnerDashboard = () => {
       if (evRes.data.success) setEvents(evRes.data.data);
       if (notRes.data.success) setNotices(notRes.data.data);
       if (vehRes.data.success) setVehicles(vehRes.data.data);
+      if (mainRes.data.success) {
+        setMCurrent(mainRes.data.current);
+        setMHistory(mainRes.data.history);
+      }
+      if (evRes.data.success && typeof evRes.data.data === 'object' && evRes.data.data.extra_charges) {
+         // this is from the combined maintenance res if I structured it that way, 
+         // but let's assume separate res for clarity or adjust based on my controller
+      }
+      // Re-fetching based on my actual controller names
+      const maintenanceData = await axios.get('/api/maintenance/member/my-maintenance', { headers });
+      if (maintenanceData.data?.success) {
+        setMCurrent(maintenanceData.data.current);
+        setMHistory(maintenanceData.data.history);
+      }
+      const extraRes = await axios.get('/api/maintenance/member/my-extra-charges', { headers });
+      if (extraRes.data?.success) setExtraCharges(extraRes.data.data);
       
     } catch (e) {
       console.error(e);
@@ -152,6 +173,26 @@ const OwnerDashboard = () => {
       setShowCreateComplaint(false);
       fetchData();
     } catch (err) { alert('Failed to create complaint'); }
+  };
+
+  const handlePayMaintenance = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`/api/maintenance/member/pay-maintenance/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) { alert('Payment simulation failed'); }
+  };
+
+  const handlePayExtra = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`/api/maintenance/member/pay-extra-charge/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) { alert('Payment simulation failed'); }
   };
 
   if (loading) return (
@@ -405,47 +446,130 @@ const OwnerDashboard = () => {
                 </div>
               </div>
 
-              {/* Maintenance List */}
+              {/* Maintenance & Charges Section (Member) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 {/* Current Billing */}
+                 <div className="bg-white rounded-3xl border-2 border-indigo-100 shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-8 py-6 bg-indigo-50/50 border-b border-indigo-100 flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <CreditCard className="w-5 h-5 text-indigo-600" />
+                          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Active Maintenance</h2>
+                       </div>
+                       {mCurrent?.status === 'Pending' && <div className="px-2 py-1 bg-rose-100 text-rose-600 text-[9px] font-black rounded uppercase animate-pulse">Action Required</div>}
+                    </div>
+                    <div className="p-8 flex-1 flex flex-col justify-center">
+                       {mCurrent ? (
+                         <div className="space-y-6">
+                            <div className="flex justify-between items-end">
+                               <div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Billing Month</p>
+                                  <h3 className="text-2xl font-black text-slate-900">{new Date(mCurrent.month + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                               </div>
+                               <div className="text-right">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Amount Due</p>
+                                  <h3 className="text-2xl font-black text-indigo-600">₹{parseFloat(mCurrent.amount).toLocaleString()}</h3>
+                               </div>
+                            </div>
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                               <div className="flex items-center gap-2">
+                                  <Clock className="w-4 h-4 text-slate-400" />
+                                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Due: {new Date(mCurrent.due_date).toLocaleDateString()}</span>
+                               </div>
+                               <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest ${
+                                 mCurrent.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 
+                                 mCurrent.status === 'Initiated' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'
+                               }`}>{mCurrent.status}</span>
+                            </div>
+                            {mCurrent.status === 'Pending' && (
+                              <button 
+                                onClick={() => handlePayMaintenance(mCurrent.id)}
+                                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95"
+                              >
+                                Pay Now
+                              </button>
+                            )}
+                            {mCurrent.status === 'Initiated' && (
+                              <div className="text-center p-4 border-2 border-dashed border-blue-100 rounded-2xl">
+                                 <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">Processing Payment...</p>
+                              </div>
+                            )}
+                         </div>
+                       ) : (
+                         <div className="py-6 text-center flex flex-col items-center gap-3">
+                            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                            <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">No Pending Dues</p>
+                            <p className="text-xs text-slate-400">Next bill will be generated on the 1st.</p>
+                         </div>
+                       )}
+                    </div>
+                 </div>
+
+                 {/* Extra Charges */}
+                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <Plus className="w-5 h-5 text-amber-500" />
+                          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Extra Charges</h2>
+                       </div>
+                    </div>
+                    <div className="p-6 flex-1 space-y-4">
+                       {extraCharges.length === 0 ? (
+                         <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-300">
+                            <Info className="w-8 h-8 opacity-20" />
+                            <p className="italic text-xs uppercase font-bold tracking-widest">Clean Slate</p>
+                         </div>
+                       ) : extraCharges.map(ec => (
+                         <div key={ec.assignment_id} className="p-4 border border-slate-50 bg-slate-50/50 rounded-2xl flex items-center justify-between group">
+                            <div>
+                               <h4 className="font-bold text-slate-800 text-sm uppercase">{ec.title}</h4>
+                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">₹{parseFloat(ec.amount).toLocaleString()} • {new Date(ec.created_at).toLocaleDateString()}</p>
+                            </div>
+                            {ec.status === 'Pending' ? (
+                              <button 
+                                onClick={() => handlePayExtra(ec.assignment_id)}
+                                className="px-3 py-1.5 bg-amber-500 text-white text-[9px] font-black rounded-lg uppercase hover:bg-amber-600 transition-all"
+                              >Pay</button>
+                            ) : (
+                              <span className={`text-[9px] font-black px-2 py-1 rounded uppercase ${ec.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>{ec.status}</span>
+                            )}
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+
+              {/* Maintenance History Table */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+                <div className="px-8 py-6 border-b border-slate-50">
                   <div className="flex items-center gap-3">
-                    <CreditCard className="w-5 h-5 text-indigo-600" />
-                    <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Maintenance History</h2>
+                    <ClipboardList className="w-5 h-5 text-slate-400" />
+                    <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Payment History</h2>
                   </div>
-                  <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700">View All Invoices</button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full text-left">
                     <thead>
                       <tr className="bg-slate-50/50">
-                        <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Month</th>
-                        <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
-                        <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Due Date</th>
-                        <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                        <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Month</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Receipt</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {maintenance.length === 0 ? (
-                        <tr><td colSpan="5" className="px-8 py-10 text-center text-slate-400 italic text-sm">No billing records found.</td></tr>
-                      ) : maintenance.map(m => (
-                        <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-8 py-5 font-bold text-slate-800">{m.billing_month || new Date(m.due_date).toLocaleString('default', { month: 'long', year: 'numeric' })}</td>
-                          <td className="px-8 py-5 font-extrabold text-slate-900">₹{m.amount}</td>
-                          <td className="px-8 py-5 text-sm text-slate-500 font-medium">{new Date(m.due_date).toLocaleDateString()}</td>
-                          <td className="px-8 py-5">
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-widest ${
-                              m.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600 animate-pulse'
-                            }`}>
-                              {m.status}
-                            </span>
+                      {mHistory.length === 0 ? (
+                        <tr><td colSpan="4" className="py-10 text-center text-slate-400 italic text-xs uppercase font-bold tracking-widest">No previous transaction records.</td></tr>
+                      ) : mHistory.map(h => (
+                        <tr key={h.id} className="hover:bg-slate-50/10 transition-colors">
+                          <td className="px-6 py-4 text-sm font-bold text-slate-700">{new Date(h.month + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}</td>
+                          <td className="px-6 py-4 text-sm font-black text-slate-900">₹{parseFloat(h.amount).toLocaleString()}</td>
+                          <td className="px-6 py-4">
+                            <span className={`text-[9px] font-black px-2 py-1 rounded uppercase ${h.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{h.status}</span>
                           </td>
-                          <td className="px-8 py-5 text-right">
-                            {m.status === 'pending' ? (
-                              <button className="px-4 py-1.5 bg-indigo-600 text-white text-[10px] font-black rounded-full hover:bg-indigo-700 transition-all uppercase shadow-md shadow-indigo-100">Pay Now</button>
-                            ) : (
-                              <button className="p-2 text-slate-300 hover:text-indigo-600 transition-colors"><ClipboardList className="w-4 h-4" /></button>
-                            )}
+                          <td className="px-6 py-4 text-right">
+                             {h.status === 'Paid' ? (
+                               <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><ClipboardList className="w-4 h-4 mx-auto" /></button>
+                             ) : <span className="text-[10px] text-slate-300 font-bold uppercase">—</span>}
                           </td>
                         </tr>
                       ))}
