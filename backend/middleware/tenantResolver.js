@@ -31,7 +31,7 @@ const tenantResolver = async (req, res, next) => {
     // e.g. "somnath.automytee.in" → parts = ["somnath","automytee","in"]
     const parts = hostname.split('.');
     if (parts.length < 2) return next();
-    const subdomain = parts[0];
+    const subdomain = parts[0].trim().toLowerCase();
 
     if (!subdomain || subdomain === 'www') {
       return next();

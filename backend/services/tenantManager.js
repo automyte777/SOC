@@ -21,8 +21,8 @@ const getTenantConnection = async (dbName) => {
     port:     parseInt(process.env.DB_PORT || '3306', 10),
     database: dbName,
     waitForConnections: true,
-    connectionLimit: 2,    // Serverless: each fn only needs 1-2 connections
-    maxIdle: 2,
+    connectionLimit: 10,    // Increased for multi-request reliability
+    maxIdle: 10,
     idleTimeout: 30000,
     queueLimit: 0,
     enableKeepAlive: true,

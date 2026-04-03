@@ -99,8 +99,17 @@ app.use((err, req, res, next) => {
   if (err.message && err.message.startsWith('CORS')) {
     return res.status(403).json({ success: false, message: err.message });
   }
+  
   console.error('[Unhandled Error]:', err);
-  res.status(500).json({ success: false, message: 'Internal server error.' });
+  
+  // Provide more info if not in production or for specific debugging
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(500).json({ 
+    success: false, 
+    message: 'Internal server error.',
+    error: isProd ? 'A system error occurred. Please contact support.' : (err.message || String(err)),
+    stack: isProd ? undefined : err.stack
+  });
 });
 
 if (require.main === module) {

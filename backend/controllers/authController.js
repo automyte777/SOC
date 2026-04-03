@@ -57,11 +57,17 @@ class AuthController {
       }
 
       if (!tenantDB) {
+        console.error(`[Auth:Login] FAILED: No tenant DB resolved for ${bodySubdomain || 'no-subdomain'}`);
         return res.status(400).json({
           success: false,
           message: 'Society Not Identified',
           error: 'Please ensure you are accessing your society-specific URL or providing the correct subdomain.'
         });
+      }
+
+      if (!tenantInfo) {
+        console.warn(`[Auth:Login] WARNING: No tenantInfo resolved, using fallback info for ${bodySubdomain || 'no-subdomain'}`);
+        tenantInfo = { id: 0, name: 'Society', subdomain: bodySubdomain || 'unknown' };
       }
 
       // 3. User Authentication
@@ -168,7 +174,7 @@ class AuthController {
 
     } catch (error) {
       console.error('[Auth:Login Exception]:', error);
-      res.status(400).json({
+      res.status(500).json({
         success: false,
         message: 'Login Failed',
         error: error.message || 'An unexpected error occurred during login.'

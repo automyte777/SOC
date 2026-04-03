@@ -9,8 +9,8 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME     || 'saas_master_db',
   port:     parseInt(process.env.DB_PORT || '3306', 10),
   waitForConnections: true,
-  connectionLimit: 3,   // Serverless-safe: Vercel functions are short-lived
-  maxIdle: 3,
+  connectionLimit: 10,  // Increased for reliability
+  maxIdle: 10,
   idleTimeout: 30000,
   queueLimit: 0,
   enableKeepAlive: true,
