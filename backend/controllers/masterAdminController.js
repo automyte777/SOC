@@ -2,7 +2,7 @@ const pool = require('../database/db');
 const databaseCreator = require('../services/databaseCreator');
 const { getTenantConnection } = require('../services/tenantManager');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 /**
  * Helper to log audit actions globally

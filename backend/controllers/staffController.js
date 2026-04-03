@@ -4,7 +4,7 @@
  *         Attendance, Gate Passes (QR), Daily Logs, Audit Logs, Flat Directory
  */
 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const pool   = require('../database/db');
 const { getTenantConnection } = require('../services/tenantManager');

@@ -3,7 +3,7 @@
  * All methods require req.tenantDB to be set by tenantResolver middleware.
  */
 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { generateUsername, generateTempPassword } = require('./staffController');
 
 const getTenantDB = (req, res) => {
