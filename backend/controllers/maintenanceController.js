@@ -75,7 +75,7 @@ exports.getDashboardStats = async (req, res) => {
         SUM(CASE WHEN status = 'Paid' THEN amount ELSE 0 END) as totalCollected,
         SUM(CASE WHEN status != 'Paid' THEN amount ELSE 0 END) as totalPending
       FROM maintenance
-      WHERE month = ?
+      WHERE billing_month = ?
     `, [month]);
 
     res.json({
@@ -108,7 +108,7 @@ exports.getMaintenanceList = async (req, res) => {
       FROM maintenance m
       JOIN flats f ON m.flat_id = f.id
       LEFT JOIN users u ON f.flat_number = u.flat_number AND u.role IN ('home_owner', 'tenant') AND u.is_approved = 1
-      WHERE m.month = ?
+      WHERE m.billing_month = ?
     `;
     const params = [month];
 
@@ -232,13 +232,13 @@ exports.getMemberMaintenance = async (req, res) => {
 
     // Current Month Maintenance
     const [current] = await db.query(
-      'SELECT * FROM maintenance WHERE flat_id = ? AND month = ? LIMIT 1',
+      'SELECT * FROM maintenance WHERE flat_id = ? AND billing_month = ? LIMIT 1',
       [flat_id, currentMonth]
     );
 
     // History
     const [history] = await db.query(
-      'SELECT * FROM maintenance WHERE flat_id = ? ORDER BY month DESC',
+      'SELECT * FROM maintenance WHERE flat_id = ? ORDER BY billing_month DESC',
       [flat_id]
     );
 

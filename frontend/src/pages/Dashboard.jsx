@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Building2, Users, UserPlus, CreditCard, TrendingUp, ArrowRight,
   IndianRupee, Siren, CheckCircle2, XCircle, Activity, ChevronRight,
-  Shield, Package, Settings as SettingsIcon, Filter, Info
+  Shield, Package, Settings as SettingsIcon, Filter, Info, Plus, Calendar
 } from 'lucide-react';
 import { 
   BarChart, 
