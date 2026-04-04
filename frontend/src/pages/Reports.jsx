@@ -119,9 +119,9 @@ export default function Reports() {
             {/* Charts */}
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <h3 className="text-base font-bold text-slate-900 mb-6">Complaints Breakdown</h3>
-              <div className="h-64">
+              <div className="h-64 min-h-[16rem]">
                 {complaintsChart.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={256} minWidth={100}>
                     <PieChart>
                       <Pie data={complaintsChart} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                         {complaintsChart.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}

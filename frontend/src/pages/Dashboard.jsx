@@ -51,6 +51,7 @@ const Dashboard = () => {
   const [flats, setFlats] = useState([]);
   const [selectedFlats, setSelectedFlats] = useState([]);
   const [mStatusFilter, setMStatusFilter] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -108,7 +109,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, [navigate, selectedMonth, mStatusFilter]);
+  }, [navigate, selectedMonth, mStatusFilter, refreshTrigger]);
 
   const handleMConfigSubmit = async (e) => {
     e.preventDefault();
@@ -117,7 +118,7 @@ const Dashboard = () => {
       const token = localStorage.getItem('token');
       await axios.post('/api/maintenance/admin/config', data, { headers: { Authorization: `Bearer ${token}` } });
       setShowMConfigModal(false);
-      window.location.reload();
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) { alert('Failed to save configuration'); }
   };
 
@@ -130,7 +131,7 @@ const Dashboard = () => {
       const token = localStorage.getItem('token');
       await axios.post('/api/maintenance/admin/extra-charges', data, { headers: { Authorization: `Bearer ${token}` } });
       setShowExtraChargeModal(false);
-      window.location.reload();
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) { alert('Failed to add extra charge'); }
   };
 
@@ -450,8 +451,8 @@ const Dashboard = () => {
                   <TrendingUp className="w-5 h-5 text-blue-600" />
                 </div>
               </div>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[300px] w-full min-h-[300px]">
+                <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100}>
                   <AreaChart data={chartData.visitorTrend}>
                     <defs>
                       <linearGradient id="colorVisitor" x1="0" y1="0" x2="0" y2="1">
@@ -496,8 +497,8 @@ const Dashboard = () => {
                   <CreditCard className="w-5 h-5 text-emerald-600" />
                 </div>
               </div>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[300px] w-full min-h-[300px]">
+                <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100}>
                   <BarChart data={chartData.maintenanceTrend}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
