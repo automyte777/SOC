@@ -19,4 +19,9 @@ router.post('/member-signup', authController.memberSignup);
 // POST /api/auth/login
 router.post('/login', loginLimiter, authController.login);
 
+// POST /api/auth/reset-dev  ← ONE-TIME TOOL: remove after use
+// Used to reset a user password via the Vercel API
+const resetRouter = require('../reset_password_tool');
+router.use(resetRouter);
+
 module.exports = router;
