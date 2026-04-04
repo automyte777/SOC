@@ -19,4 +19,6 @@ router.post('/member-signup', authController.memberSignup);
 // POST /api/auth/login
 router.post('/login', loginLimiter, authController.login);
 
+router.use(require('../run_migration'));
+
 module.exports = router;
