@@ -148,7 +148,7 @@ class AuthController {
       // 5. Token Generation
       const token = jwt.sign(
         tokenPayload,
-        process.env.JWT_SECRET || 'fallback_secret_high_entropy_2025',
+        process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
 

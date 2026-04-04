@@ -20,7 +20,11 @@ const authenticateToken = async (req, res, next) => {
 
   let decoded;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET || 'production_secret_key_882299');
+    if (!process.env.JWT_SECRET) {
+      console.error('[Auth] CRITICAL: JWT_SECRET is not set in environment variables!');
+      return res.status(500).json({ success: false, message: 'Server misconfiguration: JWT secret missing.' });
+    }
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
     return res.status(403).json({ 
       success: false, 
