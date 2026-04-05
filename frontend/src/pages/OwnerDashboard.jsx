@@ -218,7 +218,7 @@ const OwnerDashboard = () => {
       <main className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[260px]">
         <Topbar societyName={societyName} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         
-        <div className="p-6 max-w-7xl mx-auto w-full">
+        <div className="p-4 md:p-6 max-w-7xl mx-auto w-full">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 font-bold" />
@@ -304,6 +304,122 @@ const OwnerDashboard = () => {
             </div>
           )}
 
+          {/* --- MOBILE VIEW (ONLY < 768px, NO-SCROLL) --- */}
+          <div className="flex flex-col md:hidden h-[calc(100vh-90px)] overflow-hidden space-y-4 pb-2">
+            
+            {/* Header & Pre-approve */}
+            <div className="flex items-center justify-between shrink-0 mb-1 pt-1">
+              <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">
+                <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Welcome</span>
+                {user?.name}
+              </h1>
+              <button onClick={() => setShowPreApprove(true)} className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95">
+                <ShieldCheck className="w-4 h-4" /> Pre-approve
+              </button>
+            </div>
+
+            {/* 1. Notice Board */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 shrink-0 flex flex-col gap-3 relative overflow-hidden shadow-slate-200/50">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-full -z-0 opacity-80"></div>
+              <div className="flex items-center justify-between relative z-10 w-full mb-1">
+                <div className="flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-rose-500" />
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-tight">Notice Board</h2>
+                </div>
+                <button className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">View All</button>
+              </div>
+              <div className="flex flex-col gap-2 relative z-10">
+                {notices.length === 0 ? (
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">No active notices</p>
+                ) : notices.slice(0, 2).map(n => (
+                  <div key={n.id} className="p-3 border-l-2 border-rose-500 bg-rose-50/60 rounded-r-xl flex flex-col justify-center">
+                    <p className="font-bold text-slate-800 text-xs truncate max-w-[250px] uppercase tracking-tight">{n.title}</p>
+                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{new Date(n.created_at).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Maintenance / Balance Due */}
+            <div className="bg-indigo-50/80 rounded-3xl border-2 border-indigo-100 shadow-sm p-5 shrink-0 relative overflow-hidden shadow-indigo-100/50">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100/50 rounded-bl-full -z-0"></div>
+              <div className="flex items-center justify-between mb-4 relative z-10 w-full">
+                <div className="flex items-center gap-2">
+                   <CreditCard className="w-5 h-5 text-indigo-600" />
+                   <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-tight">Maintenance</h2>
+                </div>
+                {mCurrent && <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest shadow-sm ${mCurrent.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{mCurrent.status}</span>}
+              </div>
+              <div className="flex items-center justify-between relative z-10">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Amount Due</p>
+                  <h3 className="text-2xl font-black text-indigo-700 leading-none">₹{mCurrent ? parseFloat(mCurrent.amount).toLocaleString() : '0'}</h3>
+                </div>
+                {mCurrent && mCurrent.status === 'Pending' && (
+                  <button onClick={() => handlePayMaintenance(mCurrent.id)} className="px-5 py-3 bg-slate-900 text-white text-[10px] font-black rounded-xl uppercase tracking-widest shadow-xl shadow-slate-300/50 active:scale-95 transition-all">Pay Now</button>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Recent Activity */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 flex-1 overflow-hidden flex flex-col relative w-full shadow-slate-200/50">
+              <div className="flex items-center gap-2 mb-3 shrink-0">
+                <Clock className="w-4 h-4 text-slate-600" />
+                <h2 className="text-sm font-bold text-slate-800 uppercase tracking-tight">Recent Activity</h2>
+              </div>
+              <div className="flex flex-col gap-2.5 overflow-hidden w-full">
+                {(() => {
+                  const visitorActs = visitors.slice(0, 3).map(v => ({
+                    id: `v-${v.id}`,
+                    icon: <ShieldCheck className="w-4 h-4" />,
+                    bgClass: v.status === 'pending_approval' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600',
+                    title: v.visitor_name,
+                    subtitle: `Visitor • ${v.status.replace('_', ' ')}`,
+                    time: new Date(v.entry_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+                    action: v.status === 'pending_approval' ? (
+                       <div className="flex gap-1.5 shrink-0 ml-2">
+                          <button onClick={() => handleVisitorAction(v.id, 'approved')} className="p-2 bg-emerald-100 text-emerald-600 rounded-lg shadow-sm active:scale-90 transition-all"><CheckCircle2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleVisitorAction(v.id, 'rejected')} className="p-2 bg-rose-100 text-rose-600 rounded-lg shadow-sm active:scale-90 transition-all"><XCircle className="w-4 h-4" /></button>
+                       </div>
+                    ) : null
+                  }));
+
+                  const paymentActs = mHistory.slice(0, 1).map(m => ({
+                    id: `m-${m.id}`,
+                    icon: <CreditCard className="w-4 h-4" />,
+                    bgClass: 'bg-blue-100 text-blue-600',
+                    title: 'Maintenance Paid',
+                    subtitle: `₹${parseFloat(m.amount).toLocaleString()} • ${new Date(m.month + '-01').toLocaleString('default', { month: 'short' })}`,
+                    time: '',
+                    action: null
+                  }));
+
+                  const acts = [...visitorActs, ...paymentActs].slice(0, 3);
+
+                  if(acts.length === 0) return <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center py-4">No recent activity</p>;
+
+                  return acts.map((act) => (
+                    <div key={act.id} className="flex items-center justify-between p-3 bg-slate-50/80 rounded-2xl border border-slate-100/80 hover:border-slate-200 transition-all w-full shrink-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${act.bgClass}`}>
+                          {act.icon}
+                        </div>
+                        <div className="truncate pr-1">
+                          <p className="font-bold text-slate-800 text-xs truncate uppercase tracking-tight">{act.title}</p>
+                          <p className="text-[9px] font-black text-slate-400 truncate uppercase tracking-widest mt-0.5">{act.subtitle} {act.time && `• ${act.time}`}</p>
+                        </div>
+                      </div>
+                      {act.action}
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+          </div>
+
+          {/* --- DESKTOP VIEW (≥ 768px) --- */}
+          <div className="hidden md:block">
           <header className="mb-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -726,6 +842,7 @@ const OwnerDashboard = () => {
               </div>
 
             </div>
+          </div>
           </div>
         </div>
       </main>
