@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Home, ClipboardList, Megaphone, Users, 
   Clock, ShieldCheck, CreditCard, AlertTriangle, 
-  Calendar, Car, Plus, Trash2, CheckCircle2, XCircle
+  Calendar, Car, Plus, Trash2, CheckCircle2, XCircle, Info
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
