@@ -10,9 +10,12 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import ProfileSettingsModals from './ProfileSettingsModals';
 
 const Topbar = ({ societyName, toggleSidebar }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -145,11 +148,17 @@ const Topbar = ({ societyName, toggleSidebar }) => {
 
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-              <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors text-left">
+              <button 
+                onClick={() => { setIsDropdownOpen(false); setShowProfileModal(true); }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors text-left"
+              >
                 <User className="w-4 h-4" />
                 Profile
               </button>
-              <button onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors text-left">
+              <button 
+                onClick={() => { setIsDropdownOpen(false); setShowSettingsModal(true); }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors text-left"
+              >
                 <SettingsIcon className="w-4 h-4" />
                 Settings
               </button>
@@ -165,6 +174,11 @@ const Topbar = ({ societyName, toggleSidebar }) => {
           )}
         </div>
       </div>
+
+      <ProfileSettingsModals 
+        showProfile={showProfileModal} setShowProfile={setShowProfileModal}
+        showSettings={showSettingsModal} setShowSettings={setShowSettingsModal}
+      />
     </header>
   );
 };

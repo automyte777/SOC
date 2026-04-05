@@ -56,4 +56,10 @@ router.get('/security/visitors', requireRole('security_guard', 'society_secretar
 router.post('/security/visitors', requireRole('security_guard', 'society_secretary'), memCtrl.addVisitor);
 router.put('/security/visitors/:id/status', requireRole('security_guard', 'society_secretary', 'home_owner', 'tenant', 'home_member'), memCtrl.updateVisitorStatus);
 
+// --- Profile & Settings ---
+router.get('/profile', isMember, memCtrl.getProfile);
+router.put('/profile', isMember, memCtrl.updateProfile);
+router.put('/change-password', isMember, memCtrl.changePassword);
+router.put('/settings', isMember, memCtrl.updateSettings);
+
 module.exports = router;

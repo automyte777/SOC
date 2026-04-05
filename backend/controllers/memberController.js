@@ -401,3 +401,102 @@ exports.addFamilyMember = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error adding member' });
   }
 };
+
+// --- PROFILE & SETTINGS ---
+
+exports.getProfile = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { user_id } = req.user;
+    const [u] = await db.query(
+      'SELECT id, name, email, phone, role, flat_number, block, profile_image, settings FROM users WHERE id = ?', 
+      [user_id]
+    );
+    if (!u.length) return res.status(404).json({ success: false, message: 'User not found' });
+    
+    let settings = u[0].settings;
+    if (typeof settings === 'string') {
+       try { settings = JSON.parse(settings); } catch(e) { settings = {}; }
+    }
+    
+    res.json({ success: true, data: { ...u[0], settings: settings || {} } });
+  } catch (e) {
+    // If profile_image or settings column doesn't exist, safely return what we have
+    const db = getTenantDB(req, res);
+    const { user_id } = req.user;
+    if(db) {
+       try {
+         const [u] = await db.query('SELECT id, name, email, phone, role, flat_number, block FROM users WHERE id = ?', [user_id]);
+         res.json({ success: true, data: { ...u[0], settings: {} } });
+       } catch (fallbackErr) {
+         res.status(500).json({ success: false, message: 'Server error fetching profile' });
+       }
+    } else {
+       res.status(500).json({ success: false, message: 'Server error fetching profile' });
+    }
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { user_id } = req.user;
+    const { name, phone, profile_image } = req.body;
+    
+    // Auto-create column if missing
+    try { await db.query('ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) DEFAULT NULL'); } catch(e) {}
+    
+    await db.query(
+      'UPDATE users SET name = ?, phone = ?, profile_image = ? WHERE id = ?',
+      [name, phone, profile_image || null, user_id]
+    );
+    res.json({ success: true, message: 'Profile updated successfully' });
+  } catch (e) {
+    console.error('[updateProfile Error]:', e);
+    res.status(500).json({ success: false, message: 'Server error updating profile' });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { user_id } = req.user;
+    const { currentPassword, newPassword } = req.body;
+    
+    const [u] = await db.query('SELECT password_hash FROM users WHERE id = ?', [user_id]);
+    if (!u.length) return res.status(404).json({ success: false, message: 'User not found' });
+    
+    const bcrypt = require('bcryptjs');
+    const isMatch = await bcrypt.compare(currentPassword, u[0].password_hash);
+    if (!isMatch) return res.status(400).json({ success: false, message: 'Incorrect current password' });
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, user_id]);
+    
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (e) {
+    console.error('[changePassword Error]:', e);
+    res.status(500).json({ success: false, message: 'Server error changing password' });
+  }
+};
+
+exports.updateSettings = async (req, res) => {
+  try {
+    const db = getTenantDB(req, res);
+    if (!db) return;
+    const { user_id } = req.user;
+    const { settings } = req.body;
+    
+    // Auto-create column if missing
+    try { await db.query('ALTER TABLE users ADD COLUMN settings JSON DEFAULT NULL'); } catch(e) {}
+    
+    await db.query('UPDATE users SET settings = ? WHERE id = ?', [JSON.stringify(settings), user_id]);
+    res.json({ success: true, message: 'Settings saved successfully' });
+  } catch (e) {
+    console.error('[updateSettings Error]:', e);
+    res.status(500).json({ success: false, message: 'Server error updating settings' });
+  }
+};
