@@ -53,15 +53,13 @@ const OwnerDashboard = () => {
         propRes, famRes, visRes, mainRes, compRes, evRes, notRes, vehRes
       ] = await Promise.all([
         axios.get('/api/member/my-property', { headers }).catch(e => e.response),
-        axios.get('/api/member/my-family', { headers }),
-        axios.get(`/api/member/my-visitors?page=${visitorPage}`, { headers }),
-        axios.get('/api/member/my-maintenance', { headers }),
-        axios.get('/api/member/my-complaints', { headers }),
-        axios.get('/api/member/events', { headers }),
-        axios.get('/api/member/notices', { headers }),
-        axios.get('/api/member/my-vehicles', { headers }),
-        axios.get('/api/maintenance/member/my-maintenance', { headers }),
-        axios.get('/api/maintenance/member/my-extra-charges', { headers })
+        axios.get('/api/member/my-family', { headers }).catch(e => e.response),
+        axios.get(`/api/member/my-visitors?page=${visitorPage}`, { headers }).catch(e => e.response),
+        axios.get('/api/member/my-maintenance', { headers }).catch(e => e.response),
+        axios.get('/api/member/my-complaints', { headers }).catch(e => e.response),
+        axios.get('/api/member/events', { headers }).catch(e => e.response),
+        axios.get('/api/member/notices', { headers }).catch(e => e.response),
+        axios.get('/api/member/my-vehicles', { headers }).catch(e => e.response)
       ]);
 
       if (propRes?.status === 403 && propRes.data.expired) {
@@ -71,33 +69,25 @@ const OwnerDashboard = () => {
         return;
       }
 
-      if (propRes?.data?.success) setProperty(propRes.data.data);
-      if (famRes.data.success) setFamily(famRes.data.data);
-      if (visRes.data.success) {
-        setVisitors(visRes.data.data);
-        setTotalVisitors(visRes.data.total);
+      if (propRes?.data?.success) setProperty(propRes.data.data || null);
+      if (famRes?.data?.success) setFamily(famRes.data.data || []);
+      if (visRes?.data?.success) {
+        setVisitors(visRes.data.data || []);
+        setTotalVisitors(visRes.data.total || 0);
       }
-      if (mainRes.data.success) setMaintenance(mainRes.data.data);
-      if (compRes.data.success) setComplaints(compRes.data.data);
-      if (evRes.data.success) setEvents(evRes.data.data);
-      if (notRes.data.success) setNotices(notRes.data.data);
-      if (vehRes.data.success) setVehicles(vehRes.data.data);
-      if (mainRes.data.success) {
-        setMCurrent(mainRes.data.current);
-        setMHistory(mainRes.data.history);
+      if (mainRes?.data?.success) setMaintenance(mainRes.data.data || []);
+      if (compRes?.data?.success) setComplaints(compRes.data.data || []);
+      if (evRes?.data?.success) setEvents(evRes.data.data || []);
+      if (notRes?.data?.success) setNotices(notRes.data.data || []);
+      if (vehRes?.data?.success) setVehicles(vehRes.data.data || []);
+      
+      const maintenanceData = await axios.get('/api/maintenance/member/my-maintenance', { headers }).catch(e => e.response);
+      if (maintenanceData?.data?.success) {
+        setMCurrent(maintenanceData.data.current || null);
+        setMHistory(maintenanceData.data.history || []);
       }
-      if (evRes.data.success && typeof evRes.data.data === 'object' && evRes.data.data.extra_charges) {
-         // this is from the combined maintenance res if I structured it that way, 
-         // but let's assume separate res for clarity or adjust based on my controller
-      }
-      // Re-fetching based on my actual controller names
-      const maintenanceData = await axios.get('/api/maintenance/member/my-maintenance', { headers });
-      if (maintenanceData.data?.success) {
-        setMCurrent(maintenanceData.data.current);
-        setMHistory(maintenanceData.data.history);
-      }
-      const extraRes = await axios.get('/api/maintenance/member/my-extra-charges', { headers });
-      if (extraRes.data?.success) setExtraCharges(extraRes.data.data);
+      const extraRes = await axios.get('/api/maintenance/member/my-extra-charges', { headers }).catch(e => e.response);
+      if (extraRes?.data?.success) setExtraCharges(extraRes.data.data || []);
       
     } catch (e) {
       console.error(e);
