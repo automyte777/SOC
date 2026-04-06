@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
+import AdBanner from '../components/AdBanner';
 import { getUser } from '../utils/auth';
 
 const MemberDashboard = () => {
@@ -257,6 +258,9 @@ const MemberDashboard = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Ad Banner — between Notices and Events */}
+              <AdBanner societyId={user?.society_id} isMobile={false} />
 
               {/* Events */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">

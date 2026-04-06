@@ -3,9 +3,10 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, Server, KeyRound, Loader2, LayoutDashboard, Building, Users, ScrollText, SwitchCamera,
-  CreditCard, Package, Headphones, Settings as ConfigIcon, Database, Send, Tag, PenSquare, Play, XCircle, HardDrive, Menu, X
+  CreditCard, Package, Headphones, Settings as ConfigIcon, Database, Send, Tag, PenSquare, Play, XCircle, HardDrive, Menu, X, Megaphone
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import AdsManagement from './AdsManagement';
 import { MAIN_DOMAIN, buildSubdomainUrl } from '../utils/domain';
 
 export default function MasterAdminDashboard() {
@@ -184,6 +185,9 @@ export default function MasterAdminDashboard() {
           <TabLink id="tickets" icon={Headphones} label="Support Center" />
           <TabLink id="settings" icon={ConfigIcon} label="Global Config" />
           <TabLink id="logs" icon={ScrollText} label="Audit Enclave" />
+          
+          <p className="text-[10px] uppercase text-slate-500 font-bold mb-2 mt-8 ml-2 tracking-widest">Promotions</p>
+          <TabLink id="ads" icon={Megaphone} label="Ads Management" />
         </div>
         <div className="p-4 border-t border-slate-800">
             <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
@@ -394,6 +398,11 @@ export default function MasterAdminDashboard() {
                     ))}
                     {tickets.length === 0 && <div className="text-center py-20 text-slate-400 font-bold uppercase text-xs tracking-widest bg-white rounded-2xl border border-dashed border-slate-300">No signals in concierge desk.</div>}
                 </div>
+            )}
+
+            {/* ADS MANAGEMENT */}
+            {activeTab === 'ads' && (
+              <AdsManagement secret={secret} />
             )}
 
             {/* SETTINGS */}

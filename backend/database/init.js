@@ -131,6 +131,50 @@ const initMasterDB = async () => {
         console.log('✅ Default plans seeded.');
       }
 
+      // ── ads ──────────────────────────────────────────────────────────────
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS ads (
+          id           INT AUTO_INCREMENT PRIMARY KEY,
+          title        VARCHAR(255)  NOT NULL,
+          description  TEXT          NOT NULL,
+          image_url    VARCHAR(500)  DEFAULT NULL,
+          cta_link     VARCHAR(500)  DEFAULT NULL,
+          phone_number VARCHAR(30)   DEFAULT NULL,
+          society_ids  JSON          NOT NULL DEFAULT (JSON_ARRAY()),
+          start_date   DATE          NOT NULL,
+          end_date     DATE          NOT NULL,
+          is_active    TINYINT(1)    NOT NULL DEFAULT 1,
+          created_by   VARCHAR(100)  DEFAULT 'master_admin',
+          created_at   TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+          updated_at   TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_ads_active     (is_active),
+          INDEX idx_ads_start_date (start_date),
+          INDEX idx_ads_end_date   (end_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+      console.log('✅ Table "ads" checked/created.');
+
+      // ── ad_analytics ──────────────────────────────────────────────────────
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS ad_analytics (
+          id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          ad_id       INT            NOT NULL,
+          society_id  INT            NOT NULL,
+          user_id     INT            DEFAULT NULL,
+          event_type  ENUM('impression','click') NOT NULL,
+          device_type ENUM('mobile','desktop')   NOT NULL DEFAULT 'desktop',
+          created_at  TIMESTAMP      DEFAULT CURRENT_TIMESTAMP,
+
+          INDEX idx_aa_ad_id   (ad_id),
+          INDEX idx_aa_society (society_id),
+          INDEX idx_aa_event   (event_type),
+          INDEX idx_aa_created (created_at),
+
+          CONSTRAINT fk_aa_ad FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+      console.log('✅ Table "ad_analytics" checked/created.');
+
     } finally {
       connection.release();
     }

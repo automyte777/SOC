@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controllers/masterAdminController');
+const ctrl    = require('../controllers/masterAdminController');
+const adsRoutes = require('./adsRoutes');
 
 /**
  * Master Admin Auth Middleware
@@ -69,5 +70,8 @@ router.post('/settings', ctrl.updateSetting.bind(ctrl));
 
 // ── Announcements ───────────────────────────────────────────────
 router.post('/announcements', ctrl.createAnnouncement.bind(ctrl));
+
+// ── Advertisements ──────────────────────────────────────────────
+router.use('/', adsRoutes);
 
 module.exports = router;

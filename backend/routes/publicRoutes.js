@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/db');
 const { getTenantConnection } = require('../services/tenantManager');
+const adsCtrl = require('../controllers/adsController');
 
 // Fetch active flats for a specific society subdomain (Used in Member Signup)
 router.get('/flats', async (req, res) => {
@@ -30,4 +31,14 @@ router.get('/flats', async (req, res) => {
   }
 });
 
+// ── Active Ads (for resident dashboards) ────────────────────────────────────
+// GET /api/public/ads/active?society_id=<id>
+router.get('/ads/active', adsCtrl.getActiveAds);
+
+// ── Ad Analytics Tracking (fire-and-forget, no auth needed) ─────────────────
+// POST /api/public/ads/track
+router.post('/ads/track', adsCtrl.trackAdEvent);
+
+
 module.exports = router;
+

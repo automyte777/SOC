@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
+import AdBanner from '../components/AdBanner';
 import { getUser } from '../utils/auth';
 
 const TenantDashboard = () => {
@@ -244,6 +245,10 @@ const TenantDashboard = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                  {/* Ad Banner — between Notices and Events */}
+                  <div className="px-8 pb-4">
+                    <AdBanner societyId={user?.society_id} isMobile={false} />
                   </div>
                   <div className="p-8">
                     <div className="flex items-center gap-3 mb-6">

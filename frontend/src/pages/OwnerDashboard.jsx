@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
+import AdBanner from '../components/AdBanner';
 import { getUser } from '../utils/auth';
 
 const OwnerDashboard = () => {
@@ -339,6 +340,9 @@ const OwnerDashboard = () => {
                 ))}
               </div>
             </div>
+
+            {/* Ad Banner — between Notice Board and Maintenance (mobile) */}
+            <AdBanner societyId={user?.society_id} isMobile={true} />
 
             {/* 2. Maintenance / Balance Due */}
             <div className="bg-indigo-50/80 rounded-3xl border-2 border-indigo-100 shadow-sm p-5 shrink-0 relative overflow-hidden shadow-indigo-100/50">
@@ -784,6 +788,9 @@ const OwnerDashboard = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Ad Banner — between Notice Board and Events (desktop right column) */}
+              <AdBanner societyId={user?.society_id} isMobile={false} />
 
               {/* Events */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
