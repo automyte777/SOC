@@ -74,4 +74,45 @@ router.post('/announcements', ctrl.createAnnouncement.bind(ctrl));
 // ── Advertisements ──────────────────────────────────────────────
 router.use('/', adsRoutes);
 
+// ── One-time DB Migration (trigger from browser, safe to re-run) ─
+router.post('/system/migrate-ads-monetization', async (req, res) => {
+  const pool = require('../database/db');
+  const results = [];
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    const alterations = [
+      `ALTER TABLE ads ADD COLUMN IF NOT EXISTS client_name     VARCHAR(255)  DEFAULT NULL`,
+      `ALTER TABLE ads ADD COLUMN IF NOT EXISTS client_contact  VARCHAR(50)   DEFAULT NULL`,
+      `ALTER TABLE ads ADD COLUMN IF NOT EXISTS price           DECIMAL(10,2) DEFAULT 0.00`,
+      `ALTER TABLE ads ADD COLUMN IF NOT EXISTS payment_status  ENUM('pending','paid') DEFAULT 'pending'`,
+      `ALTER TABLE ads ADD COLUMN IF NOT EXISTS payment_method  VARCHAR(50)   DEFAULT 'manual'`,
+    ];
+    for (const sql of alterations) {
+      try {
+        await conn.query(sql);
+        const col = sql.split('ADD COLUMN IF NOT EXISTS')[1]?.trim().split(' ')[0] ?? '?';
+        results.push({ col, status: 'added' });
+      } catch (e) {
+        if (e.message.includes('Duplicate') || e.message.includes('already exists')) {
+          const col = sql.split('ADD COLUMN IF NOT EXISTS')[1]?.trim().split(' ')[0] ?? '?';
+          results.push({ col, status: 'already_exists' });
+        } else throw e;
+      }
+    }
+    // Index
+    try {
+      await conn.query(`ALTER TABLE ads ADD INDEX idx_payment_status (payment_status)`);
+      results.push({ col: 'idx_payment_status', status: 'index_added' });
+    } catch (_) {
+      results.push({ col: 'idx_payment_status', status: 'index_already_exists' });
+    }
+    res.json({ success: true, message: 'Ads monetization migration complete.', results });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 module.exports = router;

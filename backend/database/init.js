@@ -175,6 +175,24 @@ const initMasterDB = async () => {
       `);
       console.log('✅ Table "ad_analytics" checked/created.');
 
+      // ── Monetization columns on ads (safe, idempotent) ───────────────────
+      const monetizationMigrations = [
+        `ALTER TABLE ads ADD COLUMN IF NOT EXISTS client_name    VARCHAR(255)  DEFAULT NULL`,
+        `ALTER TABLE ads ADD COLUMN IF NOT EXISTS client_contact VARCHAR(50)   DEFAULT NULL`,
+        `ALTER TABLE ads ADD COLUMN IF NOT EXISTS price          DECIMAL(10,2) DEFAULT 0.00`,
+        `ALTER TABLE ads ADD COLUMN IF NOT EXISTS payment_status ENUM('pending','paid') DEFAULT 'pending'`,
+        `ALTER TABLE ads ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50)   DEFAULT 'manual'`,
+      ];
+      for (const sql of monetizationMigrations) {
+        try { await connection.query(sql); }
+        catch (e) {
+          if (!e.message.includes('Duplicate') && !e.message.includes('already exists')) {
+            console.warn(`  Monetization migration warning: ${e.message}`);
+          }
+        }
+      }
+      console.log('✅ Monetization columns ensured on ads table.');
+
     } finally {
       connection.release();
     }

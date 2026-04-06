@@ -3,7 +3,8 @@ import axios from 'axios';
 import {
   Megaphone, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
   X, Upload, Link, Phone, Calendar, Building2, CheckCircle2,
-  XCircle, ImageOff, Loader2, AlertCircle, Eye, ExternalLink
+  XCircle, ImageOff, Loader2, AlertCircle, Eye, ExternalLink,
+  IndianRupee, User, CreditCard, Clock,
 } from 'lucide-react';
 
 /* ── Utility: file → base64 ────────────────────────────────────────────── */
@@ -33,18 +34,24 @@ function AdFormModal({ ad, societies, secret, onClose, onSaved }) {
   const fileRef = useRef();
 
   const [form, setForm] = useState({
-    title:        ad?.title        || '',
-    description:  ad?.description  || '',
-    cta_link:     ad?.cta_link     || '',
-    phone_number: ad?.phone_number || '',
-    start_date:   ad?.start_date   ? ad.start_date.split('T')[0] : '',
-    end_date:     ad?.end_date     ? ad.end_date.split('T')[0]   : '',
-    is_active:    ad?.is_active !== undefined ? Boolean(ad.is_active) : true,
-    society_ids:  (() => {
+    title:          ad?.title          || '',
+    description:    ad?.description    || '',
+    cta_link:       ad?.cta_link       || '',
+    phone_number:   ad?.phone_number   || '',
+    start_date:     ad?.start_date     ? ad.start_date.split('T')[0] : '',
+    end_date:       ad?.end_date       ? ad.end_date.split('T')[0]   : '',
+    is_active:      ad?.is_active !== undefined ? Boolean(ad.is_active) : true,
+    society_ids:    (() => {
       try { return typeof ad?.society_ids === 'string'
         ? JSON.parse(ad.society_ids) : (ad?.society_ids || []); }
       catch { return []; }
     })(),
+    // Monetization
+    client_name:    ad?.client_name    || '',
+    client_contact: ad?.client_contact || '',
+    price:          ad?.price          != null ? String(ad.price) : '0',
+    payment_status: ad?.payment_status || 'pending',
+    payment_method: ad?.payment_method || 'manual',
   });
 
   const [imagePreview, setImagePreview] = useState(ad?.image_url || null);
@@ -181,6 +188,57 @@ function AdFormModal({ ad, societies, secret, onClose, onSaved }) {
                   {form.is_active ? 'Active' : 'Inactive'}
                 </button>
               </Field>
+
+              {/* ── Monetization Section ───────────────────────────── */}
+              <div className="ad-mono-divider">💰 Client & Payment Info</div>
+
+              <div className="ad-row-2">
+                <Field label="Client Name">
+                  <div className="ad-input-icon">
+                    <User className="ad-icon" />
+                    <input className="ad-input ad-input-pl" value={form.client_name}
+                      onChange={e => set('client_name', e.target.value)}
+                      placeholder="e.g. Ramesh Sharma" />
+                  </div>
+                </Field>
+                <Field label="Contact Number">
+                  <div className="ad-input-icon">
+                    <Phone className="ad-icon" />
+                    <input className="ad-input ad-input-pl" value={form.client_contact}
+                      onChange={e => set('client_contact', e.target.value)}
+                      placeholder="+91 98XXX XXXXX" />
+                  </div>
+                </Field>
+              </div>
+
+              <div className="ad-row-2">
+                <Field label="Price (₹)">
+                  <div className="ad-input-icon">
+                    <IndianRupee className="ad-icon" />
+                    <input type="number" min="0" step="0.01" className="ad-input ad-input-pl"
+                      value={form.price}
+                      onChange={e => set('price', e.target.value)}
+                      placeholder="0.00" />
+                  </div>
+                </Field>
+                <Field label="Payment Status">
+                  <select className="ad-input" value={form.payment_status}
+                    onChange={e => set('payment_status', e.target.value)}>
+                    <option value="pending">⏳ Pending</option>
+                    <option value="paid">✅ Paid</option>
+                  </select>
+                </Field>
+              </div>
+
+              <Field label="Payment Method">
+                <select className="ad-input" value={form.payment_method}
+                  onChange={e => set('payment_method', e.target.value)}>
+                  <option value="manual">🖊 Manual / Cash</option>
+                  <option value="upi">📱 UPI</option>
+                  <option value="bank_transfer">🏦 Bank Transfer</option>
+                  <option value="razorpay" disabled>💳 Razorpay (coming soon)</option>
+                </select>
+              </Field>
             </div>
 
             {/* Right Column */}
@@ -251,7 +309,7 @@ function AdFormModal({ ad, societies, secret, onClose, onSaved }) {
 /* ══════════════════════════════════════════════════════════════════════════
    AD CARD
 ══════════════════════════════════════════════════════════════════════════ */
-function AdCard({ ad, onEdit, onDelete, onToggle, societies }) {
+function AdCard({ ad, onEdit, onDelete, onToggle, onTogglePayment, payLoading, societies }) {
   const isActive = Boolean(ad.is_active);
   const today = new Date().toISOString().split('T')[0];
   const isLive  = isActive && ad.start_date?.split('T')[0] <= today && ad.end_date?.split('T')[0] >= today;
@@ -268,6 +326,8 @@ function AdCard({ ad, onEdit, onDelete, onToggle, societies }) {
         return s ? s.name : `#${id}`;
       }).join(', ') || '—';
 
+  const price = parseFloat(ad.price) || 0;
+
   return (
     <div className={`ad-card ${isLive ? 'ad-card-live' : ''}`}>
       {/* Image */}
@@ -279,6 +339,10 @@ function AdCard({ ad, onEdit, onDelete, onToggle, societies }) {
         )}
         <div className={`ad-card-badge ${isLive ? 'ad-badge-live' : isActive ? 'ad-badge-scheduled' : 'ad-badge-off'}`}>
           {isLive ? '🟢 Live' : isActive ? '🕐 Scheduled' : '🔴 Off'}
+        </div>
+        {/* Payment badge overlay */}
+        <div className={`ad-pay-badge-overlay ${ad.payment_status === 'paid' ? 'ad-pay-paid' : 'ad-pay-pending'}`}>
+          {ad.payment_status === 'paid' ? <><CheckCircle2 className="w-3 h-3" /> Paid</> : <><Clock className="w-3 h-3" /> Pending</>}
         </div>
       </div>
 
@@ -296,6 +360,16 @@ function AdCard({ ad, onEdit, onDelete, onToggle, societies }) {
             <Building2 className="w-3.5 h-3.5" />
             <span className="truncate max-w-[140px]" title={societyLabel}>{societyLabel}</span>
           </span>
+          {ad.client_name && (
+            <span className="ad-meta-item">
+              <User className="w-3.5 h-3.5" /> {ad.client_name}
+            </span>
+          )}
+          {price > 0 && (
+            <span className="ad-meta-item ad-meta-price">
+              ₹{price.toLocaleString('en-IN')}
+            </span>
+          )}
         </div>
 
         {(ad.cta_link || ad.phone_number) && (
@@ -322,6 +396,20 @@ function AdCard({ ad, onEdit, onDelete, onToggle, societies }) {
           {ad.is_active ? 'Active' : 'Inactive'}
         </button>
         <div className="ad-action-right">
+          {/* Quick pay toggle */}
+          <button
+            onClick={() => onTogglePayment(ad)}
+            title={ad.payment_status === 'paid' ? 'Mark as Pending' : 'Mark as Paid'}
+            disabled={payLoading === ad.id}
+            className={`ad-pay-quick-btn ${ad.payment_status === 'paid' ? 'ad-pay-quick-paid' : 'ad-pay-quick-pending'}`}
+          >
+            {payLoading === ad.id
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : ad.payment_status === 'paid'
+                ? <><CheckCircle2 className="w-3 h-3" /> Paid</>
+                : <><Clock className="w-3 h-3" /> Pending</>
+            }
+          </button>
           <button onClick={() => onEdit(ad)} title="Edit" className="ad-icon-btn ad-edit-btn">
             <Pencil className="w-4 h-4" />
           </button>
@@ -338,13 +426,14 @@ function AdCard({ ad, onEdit, onDelete, onToggle, societies }) {
    MAIN AdsManagement COMPONENT
 ══════════════════════════════════════════════════════════════════════════ */
 export default function AdsManagement({ secret }) {
-  const [ads,       setAds]       = useState([]);
-  const [societies, setSocieties] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState('');
-  const [showForm,  setShowForm]  = useState(false);
-  const [editAd,    setEditAd]    = useState(null);
-  const [filter,    setFilter]    = useState('all'); // all | active | inactive
+  const [ads,        setAds]        = useState([]);
+  const [societies,  setSocieties]  = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
+  const [showForm,   setShowForm]   = useState(false);
+  const [editAd,     setEditAd]     = useState(null);
+  const [filter,     setFilter]     = useState('all');
+  const [payLoading, setPayLoading] = useState(null);
 
   const hdrs = { headers: { 'x-master-secret': secret } };
 
@@ -391,11 +480,27 @@ export default function AdsManagement({ secret }) {
 
   const handleSaved = () => { setShowForm(false); setEditAd(null); fetchData(); };
 
+  const handleTogglePayment = async (ad) => {
+    const newStatus = ad.payment_status === 'paid' ? 'pending' : 'paid';
+    if (!window.confirm(`Mark "${ad.title}" as ${newStatus}?`)) return;
+    setPayLoading(ad.id);
+    try {
+      await axios.patch(`/api/master/ads/${ad.id}/payment`, { payment_status: newStatus }, hdrs);
+      fetchData();
+    } catch (e) {
+      alert(e.response?.data?.message || 'Payment update failed.');
+    } finally {
+      setPayLoading(null);
+    }
+  };
+
   const today = new Date().toISOString().split('T')[0];
   const filteredAds = ads.filter(ad => {
     if (filter === 'active')   return Boolean(ad.is_active);
     if (filter === 'inactive') return !Boolean(ad.is_active);
     if (filter === 'live')     return Boolean(ad.is_active) && ad.start_date?.split('T')[0] <= today && ad.end_date?.split('T')[0] >= today;
+    if (filter === 'paid')     return ad.payment_status === 'paid';
+    if (filter === 'pending')  return ad.payment_status === 'pending';
     return true;
   });
 
@@ -404,6 +509,8 @@ export default function AdsManagement({ secret }) {
     active:   ads.filter(a => a.is_active).length,
     inactive: ads.filter(a => !a.is_active).length,
     live:     ads.filter(a => a.is_active && a.start_date?.split('T')[0] <= today && a.end_date?.split('T')[0] >= today).length,
+    paid:     ads.filter(a => a.payment_status === 'paid').length,
+    pending:  ads.filter(a => a.payment_status === 'pending').length,
   };
 
   return (
@@ -429,6 +536,8 @@ export default function AdsManagement({ secret }) {
             { label: 'Active',     val: stats.active,   color: 'text-purple-700', bg: 'bg-purple-50' },
             { label: 'Live Now',   val: stats.live,     color: 'text-emerald-700',bg: 'bg-emerald-50'},
             { label: 'Inactive',   val: stats.inactive, color: 'text-rose-700',   bg: 'bg-rose-50'   },
+            { label: 'Paid',       val: stats.paid,     color: 'text-emerald-700',bg: 'bg-emerald-50'},
+            { label: 'Pending',    val: stats.pending,  color: 'text-amber-700',  bg: 'bg-amber-50'  },
           ].map((s, i) => (
             <div key={i} className={`ads-stat-card ${s.bg}`}>
               <p className="ads-stat-label">{s.label}</p>
@@ -439,12 +548,12 @@ export default function AdsManagement({ secret }) {
 
         {/* Filter Tabs */}
         <div className="ads-filters">
-          {['all','active','live','inactive'].map(f => (
+          {['all','active','live','inactive','paid','pending'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`ads-filter-tab ${filter === f ? 'ads-filter-active' : 'ads-filter-idle'}`}>
               {f.charAt(0).toUpperCase() + f.slice(1)}
               <span className="ads-filter-count">
-                {f === 'all' ? stats.total : f === 'active' ? stats.active : f === 'live' ? stats.live : stats.inactive}
+                {stats[f] ?? stats.total}
               </span>
             </button>
           ))}
@@ -477,7 +586,8 @@ export default function AdsManagement({ secret }) {
           <div className="ads-grid">
             {filteredAds.map(ad => (
               <AdCard key={ad.id} ad={ad} societies={societies}
-                onEdit={handleEdit} onDelete={handleDelete} onToggle={handleToggle} />
+                onEdit={handleEdit} onDelete={handleDelete} onToggle={handleToggle}
+                onTogglePayment={handleTogglePayment} payLoading={payLoading} />
             ))}
           </div>
         )}
@@ -518,8 +628,9 @@ const ADS_STYLES = `
 .ads-new-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(109,40,217,.4); }
 
 /* Stats */
-.ads-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
-@media(max-width:640px){ .ads-stats { grid-template-columns:repeat(2,1fr); } }
+.ads-stats { display:grid; grid-template-columns:repeat(6,1fr); gap:.75rem; }
+@media(max-width:900px){ .ads-stats { grid-template-columns:repeat(3,1fr); } }
+@media(max-width:540px){ .ads-stats { grid-template-columns:repeat(2,1fr); } }
 .ads-stat-card { border-radius:1rem; padding:1rem 1.25rem; }
 .ads-stat-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#64748b; }
 .ads-stat-val   { font-size:1.75rem; font-weight:900; margin-top:.2rem; }
@@ -586,6 +697,35 @@ const ADS_STYLES = `
 .ad-edit-btn:hover { background:#dbeafe; }
 .ad-del-btn  { background:#fff1f2; color:#e11d48; }
 .ad-del-btn:hover  { background:#ffe4e6; }
+
+/* Payment badge overlay on card image */
+.ad-pay-badge-overlay {
+  position:absolute; bottom:.6rem; left:.6rem;
+  display:flex; align-items:center; gap:.2rem;
+  font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+  padding:.2rem .55rem; border-radius:9999px;
+}
+.ad-pay-paid    { background:#dcfce7; color:#166534; }
+.ad-pay-pending { background:#fef3c7; color:#92400e; }
+
+/* Price meta pill */
+.ad-meta-price { background:#f5f3ff; color:#7c3aed; border-radius:9999px; padding:.1rem .55rem; font-size:.72rem; font-weight:800; }
+
+/* Quick pay button in card footer */
+.ad-pay-quick-btn { display:flex; align-items:center; gap:.25rem; border:none; border-radius:.5rem; padding:.3rem .6rem; font-size:.7rem; font-weight:800; cursor:pointer; transition:all .15s; }
+.ad-pay-quick-paid    { background:#dcfce7; color:#166534; }
+.ad-pay-quick-paid:hover  { background:#bbf7d0; }
+.ad-pay-quick-pending { background:#fef3c7; color:#92400e; }
+.ad-pay-quick-pending:hover { background:#fde68a; }
+.ad-pay-quick-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+/* Monetization section divider in form */
+.ad-mono-divider {
+  font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
+  color:#7c3aed; background:#faf5ff; border:1px solid #ede9fe;
+  border-radius:.625rem; padding:.4rem .85rem; display:flex; align-items:center; gap:.3rem;
+  margin-top:.25rem;
+}
 
 /* ── OVERLAY & MODAL ────────────────────────── */
 .ad-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); z-index:1000; display:flex; align-items:center; justify-content:center; padding:1rem; }

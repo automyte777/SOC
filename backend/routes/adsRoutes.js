@@ -23,8 +23,20 @@ router.delete('/ads/:id',       adsCtrl.deleteAd);
 router.patch('/ads/:id/toggle', adsCtrl.toggleAdStatus);
 
 // ── GET Ad Analytics (admin) ───────────────────────────────────────────────
-// GET /api/master/ads/analytics?ad_id=&society_id=&from=&to=
 router.get('/ads/analytics', adsCtrl.getAdAnalytics);
+
+// ── MONETIZATION ───────────────────────────────────────────────────────────
+// PATCH /api/master/ads/:id/payment  — mark paid/pending
+router.patch('/ads/:id/payment', adsCtrl.updatePaymentStatus);
+
+// GET /api/master/ads/revenue/overview
+router.get('/ads/revenue/overview', adsCtrl.getRevenueOverview);
+
+// GET /api/master/ads/revenue/monthly
+router.get('/ads/revenue/monthly', adsCtrl.getRevenueByMonth);
+
+// GET /api/master/ads/revenue/society
+router.get('/ads/revenue/society', adsCtrl.getRevenueBySociety);
 
 
 module.exports = router;

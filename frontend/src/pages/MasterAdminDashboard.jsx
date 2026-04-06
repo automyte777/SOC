@@ -8,6 +8,7 @@ import {
 import { AreaChart, Area, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import AdsManagement from './AdsManagement';
 import AdsAnalytics  from './AdsAnalytics';
+import AdsRevenue    from './AdsRevenue';
 import { MAIN_DOMAIN, buildSubdomainUrl } from '../utils/domain';
 
 export default function MasterAdminDashboard() {
@@ -190,6 +191,7 @@ export default function MasterAdminDashboard() {
           <p className="text-[10px] uppercase text-slate-500 font-bold mb-2 mt-8 ml-2 tracking-widest">Promotions</p>
           <TabLink id="ads"          icon={Megaphone}  label="Ads Management" />
           <TabLink id="ads-analytics" icon={BarChart2}  label="Ads Analytics" />
+          <TabLink id="ads-revenue"   icon={CreditCard} label="Revenue" />
         </div>
         <div className="p-4 border-t border-slate-800">
             <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
@@ -412,6 +414,11 @@ export default function MasterAdminDashboard() {
               <AdsAnalytics secret={secret} />
             )}
 
+            {/* ADS REVENUE DASHBOARD */}
+            {activeTab === 'ads-revenue' && (
+              <AdsRevenue secret={secret} />
+            )}
+
             {/* SETTINGS */}
             {activeTab === 'settings' && (
                 <div className="grid lg:grid-cols-2 gap-6">
@@ -431,6 +438,39 @@ export default function MasterAdminDashboard() {
                             </pre>
                         </div>
                         <button onClick={()=>reqAction('post', '/system/backup', {dbName:'ALL'}, 'Backup process spawned.', 'settings')} className="w-full bg-slate-900 text-white font-black py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-2"><HardDrive className="w-4 h-4"/> Snapshot All Enclaves</button>
+                    </div>
+
+                    {/* One-time Monetization Migration */}
+                    <div className="bg-white border border-violet-100 p-6 rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-3 mb-3">
+                            <CreditCard className="w-6 h-6 text-violet-600"/>
+                            <h3 className="font-black text-slate-900 uppercase text-sm tracking-widest">Ads Monetization Schema</h3>
+                        </div>
+                        <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+                            Adds <code className="bg-slate-100 px-1 rounded text-violet-700">client_name</code>,{' '}
+                            <code className="bg-slate-100 px-1 rounded text-violet-700">client_contact</code>,{' '}
+                            <code className="bg-slate-100 px-1 rounded text-violet-700">price</code>,{' '}
+                            <code className="bg-slate-100 px-1 rounded text-violet-700">payment_status</code>,{' '}
+                            <code className="bg-slate-100 px-1 rounded text-violet-700">payment_method</code>{' '}
+                            columns to the <strong>ads</strong> table. Safe to run multiple times.
+                        </p>
+                        <button
+                            onClick={async () => {
+                                if (!window.confirm('Run ads monetization migration? This is safe to run multiple times.')) return;
+                                try {
+                                    const r = await (await import('axios')).default.post(
+                                        '/api/master/system/migrate-ads-monetization', {},
+                                        { headers: { 'x-master-secret': secret } }
+                                    );
+                                    alert('✅ Migration complete!\n' + JSON.stringify(r.data.results, null, 2));
+                                } catch (e) {
+                                    alert('❌ Migration failed: ' + (e.response?.data?.message || e.message));
+                                }
+                            }}
+                            className="w-full bg-violet-600 hover:bg-violet-500 text-white font-black py-3 rounded-xl transition-all shadow-lg shadow-violet-900/20 flex items-center justify-center gap-2 text-sm"
+                        >
+                            <CreditCard className="w-4 h-4"/> Run Monetization Migration
+                        </button>
                     </div>
                 </div>
             )}

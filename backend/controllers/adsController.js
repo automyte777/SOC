@@ -87,8 +87,11 @@ exports.createAd = async (req, res) => {
   const {
     title, description, image_base64, image_url,
     cta_link, phone_number,
-    society_ids,   // array of society IDs or 'all'
+    society_ids,
     start_date, end_date, is_active = true,
+    // Monetization fields
+    client_name, client_contact, price = 0,
+    payment_status = 'pending', payment_method = 'manual',
   } = req.body;
 
   try {
@@ -97,8 +100,6 @@ exports.createAd = async (req, res) => {
     }
 
     let finalImageUrl = image_url || null;
-
-    // Handle Cloudinary upload
     if (image_base64) {
       finalImageUrl = await uploadToCloudinary(image_base64);
     }
@@ -108,10 +109,18 @@ exports.createAd = async (req, res) => {
     );
 
     const [result] = await pool.query(
-      `INSERT INTO ads (title, description, image_url, cta_link, phone_number, society_ids, start_date, end_date, is_active, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [title, description, finalImageUrl, cta_link || null, phone_number || null,
-       societyIdsJson, start_date, end_date, is_active ? 1 : 0, 'master_admin']
+      `INSERT INTO ads
+         (title, description, image_url, cta_link, phone_number, society_ids,
+          start_date, end_date, is_active, created_by,
+          client_name, client_contact, price, payment_status, payment_method)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        title, description, finalImageUrl,
+        cta_link || null, phone_number || null, societyIdsJson,
+        start_date, end_date, is_active ? 1 : 0, 'master_admin',
+        client_name || null, client_contact || null,
+        parseFloat(price) || 0, payment_status, payment_method || 'manual',
+      ]
     );
 
     await logAudit('Ad Created', `Ad "${title}" created with id=${result.insertId}`);
@@ -132,6 +141,8 @@ exports.updateAd = async (req, res) => {
     title, description, image_base64, image_url,
     cta_link, phone_number, society_ids,
     start_date, end_date, is_active,
+    // Monetization
+    client_name, client_contact, price, payment_status, payment_method,
   } = req.body;
 
   try {
@@ -139,31 +150,38 @@ exports.updateAd = async (req, res) => {
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Ad not found.' });
     }
+    const ex = existing[0];
 
-    let finalImageUrl = image_url !== undefined ? image_url : existing[0].image_url;
-
+    let finalImageUrl = image_url !== undefined ? image_url : ex.image_url;
     if (image_base64) {
       finalImageUrl = await uploadToCloudinary(image_base64);
     }
 
     const societyIdsJson = society_ids !== undefined
       ? JSON.stringify(Array.isArray(society_ids) ? society_ids : [society_ids])
-      : existing[0].society_ids;
+      : ex.society_ids;
 
     await pool.query(
-      `UPDATE ads SET title=?, description=?, image_url=?, cta_link=?, phone_number=?,
-       society_ids=?, start_date=?, end_date=?, is_active=?
+      `UPDATE ads SET
+         title=?, description=?, image_url=?, cta_link=?, phone_number=?,
+         society_ids=?, start_date=?, end_date=?, is_active=?,
+         client_name=?, client_contact=?, price=?, payment_status=?, payment_method=?
        WHERE id=?`,
       [
-        title        ?? existing[0].title,
-        description  ?? existing[0].description,
+        title        ?? ex.title,
+        description  ?? ex.description,
         finalImageUrl,
-        cta_link     !== undefined ? cta_link     : existing[0].cta_link,
-        phone_number !== undefined ? phone_number : existing[0].phone_number,
+        cta_link     !== undefined ? cta_link     : ex.cta_link,
+        phone_number !== undefined ? phone_number : ex.phone_number,
         societyIdsJson,
-        start_date   ?? existing[0].start_date,
-        end_date     ?? existing[0].end_date,
-        is_active    !== undefined ? (is_active ? 1 : 0) : existing[0].is_active,
+        start_date   ?? ex.start_date,
+        end_date     ?? ex.end_date,
+        is_active    !== undefined ? (is_active ? 1 : 0) : ex.is_active,
+        client_name  !== undefined ? client_name  : ex.client_name,
+        client_contact !== undefined ? client_contact : ex.client_contact,
+        price        !== undefined ? parseFloat(price) : ex.price,
+        payment_status !== undefined ? payment_status : ex.payment_status,
+        payment_method !== undefined ? payment_method : ex.payment_method,
         id,
       ]
     );
@@ -578,5 +596,168 @@ exports.getSocietyAnalytics = async (req, res) => {
   } catch (err) {
     console.error('[Ads] getSocietyAnalytics error:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch society analytics.' });
+  }
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MONETIZATION  (Master-admin protected)
+══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * PATCH /api/master/ads/:id/payment
+ * Body: { payment_status: 'paid'|'pending', payment_method?: string }
+ * Marks an ad as paid or pending. Optionally enforces paid-only live rule.
+ */
+exports.updatePaymentStatus = async (req, res) => {
+  const { id } = req.params;
+  const { payment_status, payment_method } = req.body;
+
+  if (!['paid', 'pending'].includes(payment_status)) {
+    return res.status(400).json({ success: false, message: 'payment_status must be "paid" or "pending".' });
+  }
+
+  try {
+    const [existing] = await pool.query('SELECT id, title, is_active FROM ads WHERE id = ?', [id]);
+    if (existing.length === 0) return res.status(404).json({ success: false, message: 'Ad not found.' });
+
+    const updates = { payment_status };
+    if (payment_method) updates.payment_method = payment_method;
+
+    await pool.query(
+      `UPDATE ads SET payment_status = ?, payment_method = COALESCE(?, payment_method) WHERE id = ?`,
+      [payment_status, payment_method || null, id]
+    );
+
+    await logAudit(
+      'Ad Payment Updated',
+      `Ad "${existing[0].title}" (id=${id}) marked as ${payment_status} via ${payment_method || 'manual'}`
+    );
+
+    res.json({ success: true, message: `Ad marked as ${payment_status}.`, id: Number(id), payment_status });
+  } catch (err) {
+    console.error('[Ads] updatePaymentStatus error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * GET /api/master/ads/revenue/overview
+ * KPIs: total revenue, paid count, pending count, pending value,
+ *        total ads with monetization data, revenue this month.
+ * Query params: from, to (optional)
+ */
+exports.getRevenueOverview = async (req, res) => {
+  const { from, to } = req.query;
+  try {
+    const conds  = [];
+    const params = [];
+    if (from) { conds.push('DATE(created_at) >= ?'); params.push(from); }
+    if (to)   { conds.push('DATE(created_at) <= ?'); params.push(to); }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    const [[kpi]] = await pool.query(
+      `SELECT
+         COUNT(*)                                             AS total_ads,
+         SUM(CASE WHEN payment_status = 'paid'    THEN 1 ELSE 0 END) AS paid_count,
+         SUM(CASE WHEN payment_status = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+         COALESCE(SUM(CASE WHEN payment_status = 'paid'    THEN price ELSE 0 END), 0) AS total_revenue,
+         COALESCE(SUM(CASE WHEN payment_status = 'pending' THEN price ELSE 0 END), 0) AS pending_revenue,
+         COALESCE(SUM(CASE WHEN payment_status = 'paid'
+           AND DATE_FORMAT(created_at,'%Y-%m') = DATE_FORMAT(NOW(),'%Y-%m')
+           THEN price ELSE 0 END), 0)                        AS revenue_this_month
+       FROM ads
+       ${where}`,
+      params
+    );
+
+    // Recent paid ads (last 10)
+    const [recent] = await pool.query(
+      `SELECT id, title, client_name, client_contact, price, payment_status, payment_method, created_at
+       FROM ads
+       WHERE payment_status = 'paid'
+       ORDER BY created_at DESC
+       LIMIT 10`
+    );
+
+    res.json({ success: true, kpi, recent });
+  } catch (err) {
+    console.error('[Ads] getRevenueOverview error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch revenue overview.' });
+  }
+};
+
+/**
+ * GET /api/master/ads/revenue/monthly
+ * Monthly revenue breakdown for the past 12 months.
+ */
+exports.getRevenueByMonth = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+         DATE_FORMAT(created_at, '%Y-%m')                    AS month,
+         COUNT(*)                                             AS total_ads,
+         SUM(CASE WHEN payment_status='paid' THEN 1 ELSE 0 END)  AS paid_ads,
+         COALESCE(SUM(CASE WHEN payment_status='paid' THEN price ELSE 0 END), 0) AS revenue
+       FROM ads
+       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+       GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+       ORDER BY month ASC`
+    );
+    res.json({ success: true, monthly: rows });
+  } catch (err) {
+    console.error('[Ads] getRevenueByMonth error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch monthly revenue.' });
+  }
+};
+
+/**
+ * GET /api/master/ads/revenue/society
+ * Revenue breakdown per society (using society_ids JSON field).
+ * Note: For ads with society_ids = ['all'], we credit them to 'All Societies'.
+ */
+exports.getRevenueBySociety = async (req, res) => {
+  try {
+    // Fetch all monetized ads with their society_ids
+    const [ads] = await pool.query(
+      `SELECT id, title, price, payment_status, payment_method, client_name, society_ids, created_at
+       FROM ads
+       WHERE price > 0
+       ORDER BY created_at DESC`
+    );
+
+    // Fetch society names map
+    const [societies] = await pool.query('SELECT id, name FROM societies');
+    const socMap = {};
+    societies.forEach(s => { socMap[String(s.id)] = s.name; });
+
+    // Group revenue by society
+    const revenueMap = {};
+    for (const ad of ads) {
+      let ids = [];
+      try {
+        ids = typeof ad.society_ids === 'string' ? JSON.parse(ad.society_ids) : (ad.society_ids || []);
+      } catch (_) {}
+
+      const label = ids.includes('all') ? 'All Societies'
+        : ids.map(id => socMap[String(id)] || `Society #${id}`).join(', ') || 'Unassigned';
+
+      if (!revenueMap[label]) {
+        revenueMap[label] = { society: label, total_ads: 0, paid_ads: 0, pending_ads: 0, revenue: 0, pending_revenue: 0 };
+      }
+      revenueMap[label].total_ads++;
+      if (ad.payment_status === 'paid') {
+        revenueMap[label].paid_ads++;
+        revenueMap[label].revenue += parseFloat(ad.price) || 0;
+      } else {
+        revenueMap[label].pending_ads++;
+        revenueMap[label].pending_revenue += parseFloat(ad.price) || 0;
+      }
+    }
+
+    const result = Object.values(revenueMap).sort((a, b) => b.revenue - a.revenue);
+    res.json({ success: true, societies: result, all_ads: ads });
+  } catch (err) {
+    console.error('[Ads] getRevenueBySociety error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch society revenue.' });
   }
 };
