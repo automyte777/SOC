@@ -413,3 +413,170 @@ exports.getAdAnalytics = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch analytics.' });
   }
 };
+
+/* ──────────────────────────────────────────────────────────────────────────
+   ADMIN ANALYTICS  (Master-admin protected — called via /api/master/ads/...)
+────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * GET /api/master/ads/analytics/overview
+ * Top-level KPIs: total ads, total impressions, total clicks, avg CTR,
+ * plus a 30-day daily time-series for the trend charts.
+ * Query params: from, to, society_id, ad_id (all optional)
+ */
+exports.getAnalyticsOverview = async (req, res) => {
+  const { from, to, society_id, ad_id } = req.query;
+  try {
+    const conds  = [];
+    const params = [];
+
+    if (from)      { conds.push('DATE(aa.created_at) >= ?'); params.push(from); }
+    if (to)        { conds.push('DATE(aa.created_at) <= ?'); params.push(to);   }
+    if (society_id){ conds.push('aa.society_id = ?');        params.push(parseInt(society_id, 10)); }
+    if (ad_id)     { conds.push('aa.ad_id = ?');             params.push(parseInt(ad_id, 10)); }
+
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    // ── KPI totals ──────────────────────────────────────────────────────────
+    const [[kpi]] = await pool.query(
+      `SELECT
+         COUNT(DISTINCT aa.ad_id)                                          AS total_ads_tracked,
+         COUNT(CASE WHEN aa.event_type = 'impression' THEN 1 END)         AS total_impressions,
+         COUNT(CASE WHEN aa.event_type = 'click'      THEN 1 END)        AS total_clicks,
+         ROUND(
+           COUNT(CASE WHEN aa.event_type = 'click' THEN 1 END) * 100.0 /
+           NULLIF(COUNT(CASE WHEN aa.event_type = 'impression' THEN 1 END), 0), 2
+         )                                                                 AS avg_ctr,
+         COUNT(CASE WHEN aa.device_type = 'mobile'  THEN 1 END)          AS mobile_events,
+         COUNT(CASE WHEN aa.device_type = 'desktop' THEN 1 END)          AS desktop_events
+       FROM ad_analytics aa
+       ${where}`,
+      params
+    );
+
+    // Total active ads (unfiltered)
+    const [[{ total_ads }]] = await pool.query(
+      `SELECT COUNT(*) AS total_ads FROM ads WHERE is_active = 1`
+    );
+
+    // ── 30-day daily time-series ────────────────────────────────────────────
+    const dailyConds  = [...conds];
+    const dailyParams = [...params];
+    // Default to last 30 days if no date filter
+    if (!from && !to) {
+      dailyConds.push('aa.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)');
+    }
+    const dailyWhere = dailyConds.length ? `WHERE ${dailyConds.join(' AND ')}` : '';
+
+    const [daily] = await pool.query(
+      `SELECT
+         DATE(aa.created_at)                                               AS date,
+         COUNT(CASE WHEN aa.event_type = 'impression' THEN 1 END)         AS impressions,
+         COUNT(CASE WHEN aa.event_type = 'click'      THEN 1 END)         AS clicks
+       FROM ad_analytics aa
+       ${dailyWhere}
+       GROUP BY DATE(aa.created_at)
+       ORDER BY date ASC`,
+      dailyParams
+    );
+
+    res.json({
+      success: true,
+      kpi: { ...kpi, total_ads },
+      daily,
+    });
+  } catch (err) {
+    console.error('[Ads] getAnalyticsOverview error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch overview.' });
+  }
+};
+
+/**
+ * GET /api/master/ads/analytics/per-ad
+ * Per-ad breakdown: impressions, clicks, CTR, device split, active status.
+ * Query params: from, to, society_id (all optional)
+ */
+exports.getPerAdAnalytics = async (req, res) => {
+  const { from, to, society_id } = req.query;
+  try {
+    const conds  = [];
+    const params = [];
+
+    if (from)       { conds.push('DATE(aa.created_at) >= ?'); params.push(from); }
+    if (to)         { conds.push('DATE(aa.created_at) <= ?'); params.push(to);   }
+    if (society_id) { conds.push('aa.society_id = ?');        params.push(parseInt(society_id, 10)); }
+
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    const [rows] = await pool.query(
+      `SELECT
+         a.id                                                               AS ad_id,
+         a.title,
+         a.is_active,
+         a.start_date,
+         a.end_date,
+         COUNT(CASE WHEN aa.event_type = 'impression' THEN 1 END)          AS impressions,
+         COUNT(CASE WHEN aa.event_type = 'click'      THEN 1 END)          AS clicks,
+         COUNT(CASE WHEN aa.device_type = 'mobile'    THEN 1 END)          AS mobile_events,
+         COUNT(CASE WHEN aa.device_type = 'desktop'   THEN 1 END)          AS desktop_events,
+         ROUND(
+           COUNT(CASE WHEN aa.event_type = 'click' THEN 1 END) * 100.0 /
+           NULLIF(COUNT(CASE WHEN aa.event_type = 'impression' THEN 1 END), 0), 2
+         )                                                                   AS ctr
+       FROM ads a
+       LEFT JOIN ad_analytics aa ON aa.ad_id = a.id ${conds.length ? 'AND ' + conds.join(' AND ') : ''}
+       GROUP BY a.id, a.title, a.is_active, a.start_date, a.end_date
+       ORDER BY impressions DESC`,
+      params
+    );
+
+    res.json({ success: true, ads: rows });
+  } catch (err) {
+    console.error('[Ads] getPerAdAnalytics error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch per-ad analytics.' });
+  }
+};
+
+/**
+ * GET /api/master/ads/analytics/society
+ * Society-wise breakdown: which society sees/clicks the most ads.
+ * Query params: from, to, ad_id (all optional)
+ */
+exports.getSocietyAnalytics = async (req, res) => {
+  const { from, to, ad_id } = req.query;
+  try {
+    const conds  = [];
+    const params = [];
+
+    if (from)  { conds.push('DATE(aa.created_at) >= ?'); params.push(from); }
+    if (to)    { conds.push('DATE(aa.created_at) <= ?'); params.push(to);   }
+    if (ad_id) { conds.push('aa.ad_id = ?');             params.push(parseInt(ad_id, 10)); }
+
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    const [rows] = await pool.query(
+      `SELECT
+         aa.society_id,
+         s.name                                                             AS society_name,
+         COUNT(CASE WHEN aa.event_type = 'impression' THEN 1 END)         AS impressions,
+         COUNT(CASE WHEN aa.event_type = 'click'      THEN 1 END)         AS clicks,
+         COUNT(CASE WHEN aa.device_type = 'mobile'    THEN 1 END)         AS mobile_events,
+         ROUND(
+           COUNT(CASE WHEN aa.event_type = 'click' THEN 1 END) * 100.0 /
+           NULLIF(COUNT(CASE WHEN aa.event_type = 'impression' THEN 1 END), 0), 2
+         )                                                                  AS ctr
+       FROM ad_analytics aa
+       LEFT JOIN societies s ON s.id = aa.society_id
+       ${where}
+       GROUP BY aa.society_id, s.name
+       ORDER BY impressions DESC
+       LIMIT 50`,
+      params
+    );
+
+    res.json({ success: true, societies: rows });
+  } catch (err) {
+    console.error('[Ads] getSocietyAnalytics error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch society analytics.' });
+  }
+};

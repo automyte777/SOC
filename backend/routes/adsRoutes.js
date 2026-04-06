@@ -2,6 +2,11 @@ const express = require('express');
 const router  = express.Router();
 const adsCtrl = require('../controllers/adsController');
 
+// ── Analytics (admin) — must come BEFORE /:id to avoid shadowing ───────────
+router.get('/ads/analytics/overview',  adsCtrl.getAnalyticsOverview);
+router.get('/ads/analytics/per-ad',    adsCtrl.getPerAdAnalytics);
+router.get('/ads/analytics/society',   adsCtrl.getSocietyAnalytics);
+
 // ── GET All Ads (admin view) ───────────────────────────────────────────────
 router.get('/ads',              adsCtrl.getAllAds);
 

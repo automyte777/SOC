@@ -3,10 +3,11 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, Server, KeyRound, Loader2, LayoutDashboard, Building, Users, ScrollText, SwitchCamera,
-  CreditCard, Package, Headphones, Settings as ConfigIcon, Database, Send, Tag, PenSquare, Play, XCircle, HardDrive, Menu, X, Megaphone
+  CreditCard, Package, Headphones, Settings as ConfigIcon, Database, Send, Tag, PenSquare, Play, XCircle, HardDrive, Menu, X, Megaphone, BarChart2
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import AdsManagement from './AdsManagement';
+import AdsAnalytics  from './AdsAnalytics';
 import { MAIN_DOMAIN, buildSubdomainUrl } from '../utils/domain';
 
 export default function MasterAdminDashboard() {
@@ -187,7 +188,8 @@ export default function MasterAdminDashboard() {
           <TabLink id="logs" icon={ScrollText} label="Audit Enclave" />
           
           <p className="text-[10px] uppercase text-slate-500 font-bold mb-2 mt-8 ml-2 tracking-widest">Promotions</p>
-          <TabLink id="ads" icon={Megaphone} label="Ads Management" />
+          <TabLink id="ads"          icon={Megaphone}  label="Ads Management" />
+          <TabLink id="ads-analytics" icon={BarChart2}  label="Ads Analytics" />
         </div>
         <div className="p-4 border-t border-slate-800">
             <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
@@ -403,6 +405,11 @@ export default function MasterAdminDashboard() {
             {/* ADS MANAGEMENT */}
             {activeTab === 'ads' && (
               <AdsManagement secret={secret} />
+            )}
+
+            {/* ADS ANALYTICS */}
+            {activeTab === 'ads-analytics' && (
+              <AdsAnalytics secret={secret} />
             )}
 
             {/* SETTINGS */}
