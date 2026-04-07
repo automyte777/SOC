@@ -234,7 +234,7 @@ export default function MasterAdminDashboard() {
                   <div className="lg:col-span-2 bg-white p-6 rounded-2xl border shadow-sm">
                     <h3 className="font-bold mb-6 text-slate-800 uppercase text-xs tracking-widest">Growth Enclave</h3>
                     <div className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="99%" height="100%">
                         <AreaChart data={chartData}>
                           <defs>
                             <linearGradient id="colorSoc" x1="0" y1="0" x2="0" y2="1">

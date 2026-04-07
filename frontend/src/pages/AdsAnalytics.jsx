@@ -241,7 +241,7 @@ export default function AdsAnalytics({ secret }) {
             {/* Daily Impressions — Line Chart */}
             <div className="aad-chart-card aad-chart-wide">
               <h3 className="aad-chart-title">Daily Impressions &amp; Clicks (last 14 days)</h3>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="99%" height={220}>
                 <LineChart data={daily14} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
@@ -273,7 +273,7 @@ export default function AdsAnalytics({ secret }) {
             {/* Clicks vs Impressions — Bar Chart */}
             <div className="aad-chart-card aad-chart-narrow">
               <h3 className="aad-chart-title">Clicks vs Impressions</h3>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="99%" height={220}>
                 <BarChart data={daily14.slice(-7)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} />
@@ -492,7 +492,7 @@ const STYLES = `
 /* Charts row */
 .aad-charts-row { display:grid; grid-template-columns:2fr 1fr; gap:1rem; }
 @media (max-width:900px) { .aad-charts-row { grid-template-columns:1fr; } }
-.aad-chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem 1.5rem; }
+.aad-chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem 1.5rem; min-width: 0; min-height: 0; }
 .aad-chart-title { font-size:.75rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#475569; margin:0 0 1rem; }
 
 /* Section */
