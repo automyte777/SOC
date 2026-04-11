@@ -15,7 +15,7 @@ router.post('/create-pass', isMember, ctrl.createPass);
 router.get('/my-passes', isMember, ctrl.getMyPasses);
 
 // Security functionality
-router.get('/verify-pass', requireRole('security_guard', 'society_secretary'), ctrl.verifyPass);
-router.post('/allow-entry', requireRole('security_guard', 'society_secretary'), ctrl.allowEntry);
+router.get('/verify-pass', requireRole('security_guard', 'Security', 'staff', 'society_secretary'), ctrl.verifyPass);
+router.post('/allow-entry', requireRole('security_guard', 'Security', 'staff', 'society_secretary'), ctrl.allowEntry);
 
 module.exports = router;
