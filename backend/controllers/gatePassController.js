@@ -1,7 +1,5 @@
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const fs = require('fs');
-const path = require('path');
 
 const getTenantDB = (req, res) => {
   const db = req.tenantDB;
@@ -34,19 +32,9 @@ exports.createPass = async (req, res) => {
     // Generate unique passcode
     const passcode = `GP-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
-    // Generate QR Code
-    // Ensure qrcodes directory exists
-    const publicDir = path.join(__dirname, '..', '..', 'frontend', 'public', 'qrcodes');
-    if (!fs.existsSync(publicDir)) {
-      fs.mkdirSync(publicDir, { recursive: true });
-    }
-
-    const qrFileName = `${passcode}.png`;
-    const qrFilePath = path.join(publicDir, qrFileName);
-    
-    await QRCode.toFile(qrFilePath, passcode);
-
-    const relativeQrPath = `/qrcodes/${qrFileName}`;
+    // On Serverless (Vercel), we cannot write to the file system.
+    // Instead, we just assign a dynamic public route that will generate the QR code on the fly.
+    const relativeQrPath = `/api/gatepass/qr/${passcode}`;
 
     const formattedValidFrom = new Date(valid_from).toISOString().slice(0, 19).replace('T', ' ');
     const formattedValidUntil = new Date(valid_until).toISOString().slice(0, 19).replace('T', ' ');
@@ -193,5 +181,23 @@ exports.allowEntry = async (req, res) => {
   } catch (error) {
     console.error('[allowEntry]', error);
     res.status(500).json({ success: false, message: 'Server error allowing entry.' });
+  }
+};
+
+// GET /api/gatepass/qr/:code
+// Public route to dynamically generate and serve the QR code image
+exports.serveQrCode = async (req, res) => {
+  try {
+    const { code } = req.params;
+    if (!code) {
+      return res.status(400).send('No code provided');
+    }
+    const buffer = await QRCode.toBuffer(code, { width: 300, margin: 2 });
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    res.send(buffer);
+  } catch (error) {
+    console.error('[serveQrCode]', error);
+    res.status(500).send('Error generating QR code');
   }
 };

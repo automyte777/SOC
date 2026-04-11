@@ -4,6 +4,9 @@ const authenticateToken = require('../middleware/auth');
 const { requireRole, isMember } = require('../middleware/roleMiddleware');
 const ctrl = require('../controllers/gatePassController');
 
+// Public functionality (for img src tags to load directly without auth header)
+router.get('/qr/:code', ctrl.serveQrCode);
+
 // All endpoints require authentication
 router.use(authenticateToken);
 
