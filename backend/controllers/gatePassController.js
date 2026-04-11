@@ -26,8 +26,9 @@ exports.createPass = async (req, res) => {
     }
 
     // Get flat_id for the user
-    const [u] = await db.query('SELECT flat_number FROM users WHERE id = ?', [user_id]);
-    const [f] = await db.query('SELECT id FROM flats WHERE flat_number = ?', [u[0]?.flat_number]);
+    const [u] = await db.query('SELECT flat_number FROM users WHERE id = ?', [user_id || null]);
+    const flatNumber = u[0]?.flat_number || null;
+    const [f] = await db.query('SELECT id FROM flats WHERE flat_number = ?', [flatNumber]);
     const flat_id = f[0]?.id || null;
 
     // Generate unique passcode
@@ -47,11 +48,14 @@ exports.createPass = async (req, res) => {
 
     const relativeQrPath = `/qrcodes/${qrFileName}`;
 
+    const formattedValidFrom = new Date(valid_from).toISOString().slice(0, 19).replace('T', ' ');
+    const formattedValidUntil = new Date(valid_until).toISOString().slice(0, 19).replace('T', ' ');
+
     await db.query(`
       INSERT INTO gate_passes 
       (society_id, flat_id, guest_name, mobile, purpose, pass_code, qr_code_path, status, valid_from, valid_until, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'APPROVED', ?, ?, ?)
-    `, [req.tenantId || 1, flat_id, guest_name, mobile, purpose, passcode, relativeQrPath, valid_from, valid_until, user_id]);
+    `, [req.tenantId || 1, flat_id, guest_name, mobile, purpose, passcode, relativeQrPath, formattedValidFrom, formattedValidUntil, user_id]);
 
     res.status(201).json({ 
       success: true, 
@@ -64,7 +68,7 @@ exports.createPass = async (req, res) => {
 
   } catch (error) {
     console.error('[createPass]', error);
-    res.status(500).json({ success: false, message: 'Server error creating gate pass.' });
+    res.status(500).json({ success: false, message: 'Server error creating gate pass: ' + error.message, error: error.toString() });
   }
 };
 
