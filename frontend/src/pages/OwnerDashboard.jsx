@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   Home, ClipboardList, Megaphone, Users, 
@@ -40,11 +40,18 @@ const OwnerDashboard = () => {
   // Pagination
   const [visitorPage, setVisitorPage] = useState(1);
   const [totalVisitors, setTotalVisitors] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   
   const user = getUser();
   const societyName = user?.society_name || 'My Society';
 
+  const modalsOpen = useRef(false);
+  useEffect(() => {
+    modalsOpen.current = showAddMember || showPreApprove || showCreateComplaint;
+  }, [showAddMember, showPreApprove, showCreateComplaint]);
+
   const fetchData = async (isPoll = false) => {
+    if (isPoll && modalsOpen.current) return;
     if (!isPoll) setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -94,6 +101,7 @@ const OwnerDashboard = () => {
       console.error(e);
       if (!isPoll) setError('Failed to load dashboard data. Please try again.');
     } finally {
+      setLastUpdated(new Date());
       if (!isPoll) setLoading(false);
     }
   };
@@ -207,7 +215,7 @@ const OwnerDashboard = () => {
         </div>
         <div className="w-full h-px bg-slate-50 my-2"></div>
         <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Rental Term Expired</p>
-        <button onClick={() => window.location.reload()} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Check Again</button>
+        <button onClick={() => fetchData()} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Check Again</button>
       </div>
     </div>
   );
@@ -429,6 +437,7 @@ const OwnerDashboard = () => {
               <div>
                 <h1 className="text-2xl font-bold text-slate-800 tracking-tight text-3xl">Resident Command Center</h1>
                 <p className="text-slate-500 mt-1">Hello, {user?.name}. Everything looking good at {property?.building || 'Block'} - {property?.flat_number}.</p>
+                <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mt-1">Last Updated: {lastUpdated.toLocaleTimeString()}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowPreApprove(true)} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 hover:scale-[1.02] active:scale-95">

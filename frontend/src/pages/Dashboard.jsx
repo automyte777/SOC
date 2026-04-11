@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -53,12 +53,20 @@ const Dashboard = () => {
   const [mStatusFilter, setMStatusFilter] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const modalsOpen = useRef(false);
+  useEffect(() => {
+    modalsOpen.current = showMConfigModal || showExtraChargeModal;
+  }, [showMConfigModal, showExtraChargeModal]);
+
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const societyName = JSON.parse(localStorage.getItem('user'))?.society_name || 'My Society';
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = async (isPoll = false) => {
+      if (isPoll && modalsOpen.current) return;
+      if (!isPoll) setLoading(true);
       try {
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');
@@ -104,11 +112,14 @@ const Dashboard = () => {
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
-        setLoading(false);
+        setLastUpdated(new Date());
+        if (!isPoll) setLoading(false);
       }
     };
 
     fetchDashboardData();
+    const interval = setInterval(() => fetchDashboardData(true), 15000);
+    return () => clearInterval(interval);
   }, [navigate, selectedMonth, mStatusFilter, refreshTrigger]);
 
   const handleMConfigSubmit = async (e) => {
@@ -159,6 +170,7 @@ const Dashboard = () => {
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Society Overview</h1>
               <p className="text-slate-500 text-sm mt-1">Here's what's happening in your society today.</p>
+              <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mt-1">Last Updated: {lastUpdated.toLocaleTimeString()}</p>
             </div>
             <button className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm">
               Generate Report

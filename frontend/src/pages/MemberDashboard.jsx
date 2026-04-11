@@ -25,6 +25,7 @@ const MemberDashboard = () => {
   const [extraCharges, setExtraCharges] = useState([]);
   const [mCurrent, setMCurrent] = useState(null);
   const [mHistory, setMHistory] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   const user = getUser();
   const societyName = user?.society_name || 'My Society';
@@ -67,6 +68,7 @@ const MemberDashboard = () => {
       console.error(e);
       if (!isPoll) setError('Failed to load dashboard data.');
     } finally {
+      setLastUpdated(new Date());
       if (!isPoll) setLoading(false);
     }
   };
@@ -127,6 +129,7 @@ const MemberDashboard = () => {
           <header className="mb-8">
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight text-3xl">Resident Portal</h1>
             <p className="text-slate-500 mt-1">Hello, {user?.name}. Living at Flat {user.flat_number}.</p>
+            <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mt-1">Last Updated: {lastUpdated.toLocaleTimeString()}</p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

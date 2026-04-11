@@ -23,6 +23,7 @@ const TenantDashboard = () => {
   const [events, setEvents] = useState([]);
   const [notices, setNotices] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   const [isExpired, setIsExpired] = useState(false);
   const [expiryMessage, setExpiryMessage] = useState('');
@@ -65,6 +66,7 @@ const TenantDashboard = () => {
       console.error(e);
       if (!isPoll) setError('Failed to load dashboard data.');
     } finally {
+      setLastUpdated(new Date());
       if (!isPoll) setLoading(false);
     }
   };
@@ -113,7 +115,7 @@ const TenantDashboard = () => {
         </div>
         <div className="w-full h-px bg-slate-50 my-2"></div>
         <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Login Restricted</p>
-        <button onClick={() => window.location.reload()} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Check Revocation</button>
+        <button onClick={() => fetchData()} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Check Revocation</button>
       </div>
     </div>
   );
@@ -130,6 +132,7 @@ const TenantDashboard = () => {
             <div>
               <h1 className="text-2xl font-bold text-slate-800 tracking-tight text-3xl">Tenant Portal</h1>
               <p className="text-slate-500 mt-1">Living at Flat {user.flat_number}. Welcome home, {user?.name}.</p>
+              <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mt-1">Last Updated: {lastUpdated.toLocaleTimeString()}</p>
             </div>
             <div className="bg-amber-50 border border-amber-100 px-6 py-3 rounded-2xl flex items-center gap-4 hover:shadow-lg hover:shadow-amber-50 transition-all">
               <div className="p-3 bg-amber-100 text-amber-700 rounded-xl font-bold"><FileText className="w-5 h-5" /></div>

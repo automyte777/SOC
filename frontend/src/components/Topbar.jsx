@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, 
   Search, 
@@ -26,7 +26,15 @@ const Topbar = ({ societyName, toggleSidebar }) => {
   
   const formattedRole = (user.role || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-  const fetchNotifications = async () => {
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const modalsOpen = useRef(false);
+
+  useEffect(() => {
+    modalsOpen.current = showProfileModal || showSettingsModal;
+  }, [showProfileModal, showSettingsModal]);
+
+  const fetchNotifications = async (isPoll = false) => {
+    if (isPoll && modalsOpen.current) return;
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get('/api/member/notifications', {
@@ -35,6 +43,7 @@ const Topbar = ({ societyName, toggleSidebar }) => {
       if (res.data.success) {
         setNotifications(res.data.data);
         setUnreadCount(res.data.data.filter(n => !n.is_read).length);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       console.error('Notif fetch failed');
@@ -43,7 +52,7 @@ const Topbar = ({ societyName, toggleSidebar }) => {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // refresh every 10s
+    const interval = setInterval(() => fetchNotifications(true), 10000); // refresh every 10s
     return () => clearInterval(interval);
   }, []);
 
@@ -72,7 +81,10 @@ const Topbar = ({ societyName, toggleSidebar }) => {
         >
           <Menu className="w-6 h-6" />
         </button>
-        <h2 className="text-xl font-bold text-slate-800 hidden md:block">{societyName}</h2>
+        <div className="hidden md:block">
+          <h2 className="text-xl font-bold text-slate-800 leading-tight">{societyName}</h2>
+          <p className="text-[10px] font-black tracking-widest uppercase text-slate-400">Sync: {lastUpdated.toLocaleTimeString()}</p>
+        </div>
       </div>
 
       {/* Search Bar - Hidden on Mobile */}
