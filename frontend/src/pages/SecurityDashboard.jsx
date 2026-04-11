@@ -430,7 +430,7 @@ export default function SecurityDashboard() {
                 <Calendar className="w-4 h-4 text-slate-500" />
                 <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="bg-transparent text-sm text-slate-900 py-2.5 focus:outline-none" />
               </div>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-slate-200 shadow-sm rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-slate-200 shadow-sm rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none">
                 <option value="">All Status</option>
                 {Object.entries(STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
