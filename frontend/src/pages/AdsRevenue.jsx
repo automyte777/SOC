@@ -159,7 +159,7 @@ export default function AdsRevenue({ secret }) {
             <div className="rev-empty-chart">No monthly data yet.</div>
           ) : (
             <div style={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={260}>
                 <BarChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} />
