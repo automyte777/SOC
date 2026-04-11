@@ -108,8 +108,11 @@ exports.verifyPass = async (req, res) => {
     const pass = passes[0];
     const now = new Date();
     
-    // Check if expired based on time
-    if (new Date(pass.valid_until) < now) {
+    // Check if expired based on time (with a 12 hour grace period for timezone offsets)
+    const validUntilDate = new Date(pass.valid_until);
+    validUntilDate.setHours(validUntilDate.getHours() + 12);
+
+    if (validUntilDate < now) {
       // Auto-update to EXPIRED if not already USED
       if (pass.status !== 'USED' && pass.status !== 'EXPIRED') {
          await db.query('UPDATE gate_passes SET status = "EXPIRED" WHERE id = ?', [pass.id]);
@@ -153,10 +156,16 @@ exports.allowEntry = async (req, res) => {
     }
 
     const now = new Date();
-    if (now < new Date(pass.valid_from)) {
+    const validFromGrace = new Date(pass.valid_from);
+    validFromGrace.setHours(validFromGrace.getHours() - 12); // 12-hour grace for early arrival / timezone offset
+
+    const validUntilGrace = new Date(pass.valid_until);
+    validUntilGrace.setHours(validUntilGrace.getHours() + 12); // 12-hour grace for timezone offset
+
+    if (now < validFromGrace) {
       return res.status(400).json({ success: false, message: 'Pass is not yet valid.' });
     }
-    if (now > new Date(pass.valid_until)) {
+    if (now > validUntilGrace) {
       await db.query('UPDATE gate_passes SET status = "EXPIRED" WHERE id = ?', [pass.id]);
       return res.status(400).json({ success: false, message: 'Pass is expired.' });
     }
