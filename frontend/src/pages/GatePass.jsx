@@ -12,6 +12,8 @@ const GatePass = () => {
   const [passes, setPasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Form State
   const [guestName, setGuestName] = useState('');
@@ -48,6 +50,9 @@ const GatePass = () => {
 
   const handleCreatePass = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    setIsSubmitting(true);
+    setSuccessMsg('');
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post('/api/gatepass/create-pass', {
@@ -62,16 +67,22 @@ const GatePass = () => {
       });
 
       if (res.data.success) {
-        setShowModal(false);
+        setSuccessMsg('Pass generated successfully!');
         setGuestName('');
         setMobile('');
         setPurpose('Visit');
         setValidFrom('');
         setValidUntil('');
         fetchPasses();
+        setTimeout(() => {
+          setShowModal(false);
+          setSuccessMsg('');
+        }, 1500);
       }
     } catch (e) {
       alert(e.response?.data?.message || 'Failed to create gate pass');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -112,7 +123,8 @@ const GatePass = () => {
               <p className="text-slate-500 mt-1">Generate and manage QR-based gate passes for your guests.</p>
             </div>
             <button 
-              onClick={() => setShowModal(true)}
+              type="button"
+              onClick={(e) => { e.preventDefault(); setShowModal(true); }}
               className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95 whitespace-nowrap"
             >
               <PlusCircle className="w-5 h-5" /> Create Guest Pass
@@ -154,7 +166,8 @@ const GatePass = () => {
                      
                      {pass.status === 'APPROVED' && pass.qr_code_path && (
                        <button 
-                         onClick={() => handleDownload(pass.qr_code_path, pass.guest_name)}
+                         type="button"
+                         onClick={(e) => { e.preventDefault(); handleDownload(pass.qr_code_path, pass.guest_name); }}
                          className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
                        >
                          <Download className="w-3.5 h-3.5" /> Save QR
@@ -179,14 +192,15 @@ const GatePass = () => {
       {/* Create Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowModal(false); }}></div>
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative z-10 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <QrCode className="w-5 h-5 text-indigo-600" /> New Guest Pass
               </h2>
               <button 
-                onClick={() => setShowModal(false)}
+                type="button"
+                onClick={(e) => { e.preventDefault(); setShowModal(false); }}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
               >
                 <XCircle className="w-6 h-6" />
@@ -256,24 +270,30 @@ const GatePass = () => {
                     />
                   </div>
                 </div>
+
+                <div className="pt-4 border-t border-slate-100 -mx-6 px-6 -mb-6 pb-6 bg-slate-50 flex justify-between items-center rounded-b-3xl gap-3">
+                  <div className="text-emerald-600 font-semibold text-sm">
+                    {successMsg}
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setShowModal(false); }}
+                      className="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 rounded-xl transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-6 py-3 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-200 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-70"
+                    >
+                      {isSubmitting ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : null}
+                      {isSubmitting ? 'Generating...' : 'Generate Pass'}
+                    </button>
+                  </div>
+                </div>
               </form>
-            </div>
-            
-            <div className="p-6 border-t border-slate-100 bg-slate-50 shrink-0 rounded-b-3xl flex justify-end gap-3">
-              <button 
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                form="passForm"
-                type="submit"
-                className="px-6 py-3 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-200 transition-all active:scale-95"
-              >
-                Generate Pass
-              </button>
             </div>
           </div>
         </div>
