@@ -22,6 +22,12 @@ async function migrate() {
     try {
       await connection.query(`USE \`${dbName}\``);
 
+      // Drop old legacy tables and rewrite schema
+      await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+      await connection.query('DROP TABLE IF EXISTS entry_logs');
+      await connection.query('DROP TABLE IF EXISTS gate_passes');
+      await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+
       // Create gate_passes table
       await connection.query(`
         CREATE TABLE IF NOT EXISTS gate_passes (
