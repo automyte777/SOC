@@ -118,7 +118,7 @@ export default function Login({ detectedSubdomain }) {
         </div>
 
         {/* Login Card */}
-        <div className="w-[420px] bg-white rounded-2xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-slate-100 p-8">
+        <div className="w-full bg-white rounded-2xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-slate-100 p-8 pt-6 sm:p-8">
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-slate-800">Sign In</h2>
             <p className="text-slate-500 text-sm mt-1">Welcome back! Please enter your details.</p>
