@@ -506,6 +506,7 @@ const Dashboard = () => {
                       strokeWidth={3}
                       fillOpacity={1} 
                       fill="url(#colorVisitor)" 
+                      isAnimationActive={false}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -548,6 +549,7 @@ const Dashboard = () => {
                       fill="#2563eb" 
                       radius={[6, 6, 0, 0]} 
                       barSize={40}
+                      isAnimationActive={false}
                     />
                   </BarChart>
                 </ResponsiveContainer>
