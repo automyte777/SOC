@@ -52,6 +52,8 @@ const Dashboard = () => {
   const [selectedFlats, setSelectedFlats] = useState([]);
   const [mStatusFilter, setMStatusFilter] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const isFirstLoad = useRef(true);
 
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const modalsOpen = useRef(false);
@@ -66,7 +68,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async (isPoll = false) => {
       if (isPoll && modalsOpen.current) return;
-      if (!isPoll) setLoading(true);
+      
+      if (!isPoll) {
+        if (isFirstLoad.current) setLoading(true);
+        else setIsUpdating(true);
+      }
+
       try {
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');
@@ -113,7 +120,14 @@ const Dashboard = () => {
         console.error('Error fetching dashboard data:', error);
       } finally {
         setLastUpdated(new Date());
-        if (!isPoll) setLoading(false);
+        if (!isPoll) {
+          if (isFirstLoad.current) {
+            setLoading(false);
+            isFirstLoad.current = false;
+          } else {
+            setIsUpdating(false);
+          }
+        }
       }
     };
 
@@ -229,7 +243,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-opacity duration-300 ${isUpdating ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
               <div className="p-6 border-b border-slate-50 flex flex-wrap items-center justify-between gap-4">
                 <h3 className="font-bold text-slate-800">Billing Ledger</h3>
                 <div className="flex items-center gap-3">
