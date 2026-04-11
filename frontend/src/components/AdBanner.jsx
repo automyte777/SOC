@@ -16,11 +16,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { ExternalLink, Phone, MessageCircle, ChevronLeft, ChevronRight, X, Megaphone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 /* ── Cloudinary optimized URL ───────────────────────────────────────────── */
 const optimizeCloudinaryUrl = (url) => {
   if (!url || !url.includes('cloudinary.com')) return url;
   return url.replace('/upload/', '/upload/w_800,q_auto,f_auto/');
+};
+
+/* ── URL Formatter ─────────────────────────────────────────────────────── */
+const formatUrl = (url) => {
+  if (!url) return '#';
+  if (url.startsWith('/')) return url;
+  if (!/^https?:\/\//i.test(url)) return `https://${url}`;
+  return url;
 };
 
 /* ── WhatsApp link builder ─────────────────────────────────────────────── */
@@ -112,14 +121,20 @@ export default function AdBanner({ societyId, isMobile = false }) {
       } catch (_) {}
     }
 
-    axios.get(`/api/public/ads/active?society_id=${societyId}`)
-      .then(res => {
-        const data = res.data?.ads || [];
-        setAds(data);
-        setFetched(true);
-        sessionStorage.setItem(cacheKey, JSON.stringify({ data, ts: Date.now() }));
-      })
-      .catch(() => setFetched(true)); // fail silently
+    const fetchAds = () => {
+      axios.get(`/api/public/ads/active?society_id=${societyId}`)
+        .then(res => {
+          const data = res.data?.ads || [];
+          setAds(data);
+          setFetched(true);
+          sessionStorage.setItem(cacheKey, JSON.stringify({ data, ts: Date.now() }));
+        })
+        .catch(() => setFetched(true));
+    };
+
+    fetchAds();
+    const intervalId = setInterval(fetchAds, 30000);
+    return () => clearInterval(intervalId);
   }, [societyId]);
 
   /* ── IntersectionObserver — fires impression when card enters viewport ── */
@@ -150,19 +165,49 @@ export default function AdBanner({ societyId, isMobile = false }) {
     };
   }, [fetched, ads, current, dismissed, isMobile, societyId]);
 
-  /* ── Auto-rotate every 6s (desktop only, multiple ads) ──────────────── */
+  const navigate = useNavigate();
+
+  /* ── Auto-rotate every 5s (all devices, multiple ads) ───────────────── */
+  const [isPaused, setIsPaused] = useState(false);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
   const startRotation = useCallback(() => {
-    if (isMobile || ads.length <= 1) return;
+    if (ads.length <= 1) return;
     intervalRef.current = setInterval(() => {
       setCurrent(c => (c + 1) % ads.length);
       setImgLoaded(false);
-    }, 6000);
-  }, [isMobile, ads.length]);
+    }, 5000);
+  }, [ads.length]);
 
   useEffect(() => {
-    startRotation();
+    if (!isPaused) {
+      startRotation();
+    }
     return () => clearInterval(intervalRef.current);
-  }, [startRotation]);
+  }, [startRotation, isPaused]);
+
+  /* ── Touch / Swipe logic ─────────────────────────────────────────────── */
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    setIsPaused(true);
+    clearInterval(intervalRef.current);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) {
+      setTimeout(() => setIsPaused(false), 2000);
+      return;
+    }
+    const distance = touchStart - touchEnd;
+    if (distance > 50) next();
+    else if (distance < -50) prev();
+    
+    setTimeout(() => setIsPaused(false), 2000);
+  };
 
   const goTo = (idx) => {
     clearInterval(intervalRef.current);
@@ -174,23 +219,34 @@ export default function AdBanner({ societyId, isMobile = false }) {
   const prev = () => goTo((current - 1 + ads.length) % ads.length);
   const next = () => goTo((current + 1) % ads.length);
 
-  /* ── Click tracker ────────────────────────────────────────────────────── */
-  const handleClick = useCallback((ad) => {
+  /* ── Click tracker & Link handler ────────────────────────────────────── */
+  const handleCtaClick = useCallback((e, ad) => {
+    fireTrack({ adId: ad.id, eventType: 'click', societyId });
+    const url = ad.cta_link;
+    if (!url) {
+      e.preventDefault();
+      return;
+    }
+    if (url.startsWith('/')) {
+      e.preventDefault();
+      navigate(url);
+    }
+  }, [societyId, navigate]);
+
+  const handleLinkClick = useCallback((ad) => {
     fireTrack({ adId: ad.id, eventType: 'click', societyId });
   }, [societyId]);
 
   /* ── Nothing to show ─────────────────────────────────────────────────── */
   if (!fetched || ads.length === 0 || dismissed) return null;
 
-  // On mobile: show only 1 ad (the first one)
-  const displayAds = isMobile ? [ads[0]] : ads;
-  const ad = displayAds[isMobile ? 0 : current];
+  const ad = ads[current];
   if (!ad) return null;
 
   const hasImage  = Boolean(ad.image_url);
   const hasCta    = Boolean(ad.cta_link);
   const hasPhone  = Boolean(ad.phone_number);
-  const showNav   = !isMobile && displayAds.length > 1;
+  const showNav   = ads.length > 1;
 
   return (
     <>
@@ -210,7 +266,21 @@ export default function AdBanner({ societyId, isMobile = false }) {
         <div
           ref={cardRef}
           className={`adb-card ${hasImage ? 'adb-has-image' : 'adb-no-image'}`}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onMouseEnter={() => { setIsPaused(true); clearInterval(intervalRef.current); }}
+          onMouseLeave={() => setIsPaused(false)}
         >
+          {/* Progress Indicator */}
+          {showNav && (
+            <div className="adb-progress-bar">
+              <div 
+                className={`adb-progress-fill ${!isPaused ? 'adb-anim-fill' : ''}`} 
+                key={current} // reset animation on current change
+              />
+            </div>
+          )}
 
           {/* Image */}
           {hasImage && (
@@ -235,11 +305,11 @@ export default function AdBanner({ societyId, isMobile = false }) {
             <div className="adb-actions">
               {hasCta && (
                 <a
-                  href={ad.cta_link}
-                  target="_blank"
+                  href={formatUrl(ad.cta_link)}
+                  target={ad.cta_link?.startsWith('/') ? '_self' : '_blank'}
                   rel="noopener noreferrer"
                   className="adb-btn adb-btn-cta"
-                  onClick={() => handleClick(ad)}
+                  onClick={(e) => handleCtaClick(e, ad)}
                 >
                   <ExternalLink className="adb-btn-icon" />
                   Learn More
@@ -250,7 +320,7 @@ export default function AdBanner({ societyId, isMobile = false }) {
                   <a
                     href={`tel:${ad.phone_number}`}
                     className="adb-btn adb-btn-call"
-                    onClick={() => handleClick(ad)}
+                    onClick={() => handleLinkClick(ad)}
                   >
                     <Phone className="adb-btn-icon" />
                     Call
@@ -260,7 +330,7 @@ export default function AdBanner({ societyId, isMobile = false }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="adb-btn adb-btn-wa"
-                    onClick={() => handleClick(ad)}
+                    onClick={() => handleLinkClick(ad)}
                   >
                     <MessageCircle className="adb-btn-icon" />
                     WhatsApp
@@ -283,10 +353,10 @@ export default function AdBanner({ societyId, isMobile = false }) {
           )}
         </div>
 
-        {/* Dots indicator (desktop, multiple ads) */}
+        {/* Dots indicator */}
         {showNav && (
           <div className="adb-dots">
-            {displayAds.map((_, i) => (
+            {ads.map((_, i) => (
               <button
                 key={i}
                 className={`adb-dot ${i === current ? 'adb-dot-active' : ''}`}
@@ -329,10 +399,17 @@ const AD_BANNER_STYLES = `
   flex-direction:column;
   position:relative;
   transition:box-shadow .2s;
+  touch-action: pan-y; /* allow vertical scroll, capture horizontal swipe */
 }
 .adb-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); }
 .adb-has-image  { }
 .adb-no-image   { background:linear-gradient(135deg,#f8faff 0%,#f0f4ff 100%); }
+
+/* Progress Bar */
+.adb-progress-bar { position:absolute; top:0; left:0; right:0; height:3px; background:rgba(0,0,0,0.05); z-index:10; }
+.adb-progress-fill { height:100%; width:0%; background:#4f46e5; border-radius:0 2px 2px 0; }
+.adb-anim-fill { animation:adb-progress 5s linear forwards; }
+@keyframes adb-progress { from { width:0%; } to { width:100%; } }
 
 /* Image */
 .adb-img-wrap   { position:relative; width:100%; height:140px; background:#f1f5f9; overflow:hidden; }

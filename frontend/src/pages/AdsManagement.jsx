@@ -97,6 +97,13 @@ function AdFormModal({ ad, societies, secret, onClose, onSaved }) {
     setSaving(true);
     try {
       const payload = { ...form };
+      if (payload.cta_link) {
+        payload.cta_link = payload.cta_link.trim();
+        if (payload.cta_link && !payload.cta_link.startsWith('/') && !/^https?:\/\//i.test(payload.cta_link)) {
+          payload.cta_link = `https://${payload.cta_link}`;
+        }
+      }
+
       if (imageBase64) payload.image_base64 = imageBase64;
       // Keep existing URL if no new image uploaded
       if (!imageBase64 && imagePreview && imagePreview.startsWith('http')) {
