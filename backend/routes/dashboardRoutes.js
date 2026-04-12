@@ -1,18 +1,32 @@
-const express = require('express');
-const router = express.Router();
-const dashboardController = require('../controllers/dashboardController');
-const authenticateToken = require('../middleware/auth');
+const express  = require('express');
+const router   = express.Router();
+const ctrl     = require('../controllers/dashboardController');
+const auth     = require('../middleware/auth');
 
-// All dashboard routes are protected
-router.use(authenticateToken);
+// ── SSE Stream — no auth middleware; token verified inside controller ─────────
+// EventSource API cannot set custom headers, so token is passed as query param.
+router.get('/stream', ctrl.streamDashboard);
 
-// GET /api/dashboard/stats
-router.get('/stats', dashboardController.getStats);
+// ── All other dashboard routes require a valid JWT ────────────────────────────
+router.use(auth);
 
-// GET /api/dashboard/activity
-router.get('/activity', dashboardController.getActivity);
+// Core stats (cached 30 s)
+router.get('/stats',       ctrl.getStats);
 
-// GET /api/dashboard/charts
-router.get('/charts', dashboardController.getChartData);
+// Activity feed (always fresh — no cache)
+router.get('/activity',    ctrl.getActivity);
+
+// Chart data (cached 60 s)
+router.get('/charts',      ctrl.getChartData);
+
+// ── New separated partial-update endpoints ────────────────────────────────────
+// Ads lightweight list (cached 30 s)
+router.get('/ads',         ctrl.getAds);
+
+// Analytics counters (cached 30 s)
+router.get('/analytics',   ctrl.getAnalytics);
+
+// Maintenance summary for a given month (cached 30 s per month/status combo)
+router.get('/maintenance', ctrl.getMaintenanceSummary);
 
 module.exports = router;
