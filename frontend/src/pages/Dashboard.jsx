@@ -194,7 +194,7 @@ const Dashboard = () => {
 
           {/* Maintenance Section (Secretary) */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-100">
                   <CreditCard className="w-5 h-5" />
@@ -220,7 +220,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
               <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Flats</span>
                 <span className="text-2xl font-black text-slate-900">{mStats.totalFlats}</span>
@@ -421,7 +421,7 @@ const Dashboard = () => {
           )}
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 md:gap-6">
             <StatsCard 
               title="Total Flats / Units" 
               value={stats.total_flats} 

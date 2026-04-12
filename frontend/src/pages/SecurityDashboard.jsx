@@ -621,7 +621,7 @@ export default function SecurityDashboard() {
               </select>
             </Field>
             <Field label="Purpose">
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                 {['Delivery','Guest','Service','Cab','Other'].map(p => (
                   <button key={p} type="button" onClick={() => setVForm({...vForm,purpose:p})}
                     className={`py-2.5 rounded-xl text-[11px] font-bold transition-all border text-center ${vForm.purpose===p?'bg-blue-600 border-blue-500 text-white':'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
@@ -748,7 +748,7 @@ export default function SecurityDashboard() {
           </div>
           <form onSubmit={submitEmergency} className="space-y-4">
             <Field label="Alert Type">
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                 {[['panic','🆘'],['fire','🔥'],['medical','🏥'],['theft','🚔'],['other','⚠️']].map(([v,icon]) => (
                   <button key={v} type="button" onClick={() => setEmForm({...emForm,alert_type:v})}
                     className={`py-2.5 rounded-xl text-[11px] font-bold transition-all border text-center ${emForm.alert_type===v?'bg-red-600 border-red-500 text-white':'bg-white border-slate-200 text-slate-500 hover:border-red-500/40'}`}>

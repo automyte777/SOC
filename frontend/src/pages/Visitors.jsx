@@ -143,8 +143,18 @@ export default function Visitors() {
                       ) : (
                         v.status === 'pending_approval' && (
                           <div className="flex gap-1">
-                             <button className="px-2 py-1 bg-emerald-500 text-white text-[10px] font-black rounded uppercase">Allow</button>
-                             <button className="px-2 py-1 bg-rose-500 text-white text-[10px] font-black rounded uppercase">Deny</button>
+                             <button 
+                               onClick={() => update(v.id, { status: 'approved' })}
+                               className="px-2 py-1 bg-emerald-500 text-white text-[10px] font-black rounded uppercase hover:bg-emerald-600 transition-colors"
+                             >
+                               Allow
+                             </button>
+                             <button 
+                               onClick={() => update(v.id, { status: 'rejected' })}
+                               className="px-2 py-1 bg-rose-500 text-white text-[10px] font-black rounded uppercase hover:bg-rose-600 transition-colors"
+                             >
+                               Deny
+                             </button>
                           </div>
                         )
                       )}

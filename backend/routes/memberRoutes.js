@@ -38,6 +38,7 @@ router.get('/my-property', isMember, memCtrl.getMyProperty);
 router.get('/my-family', isMember, memCtrl.getFamilyMembers);
 router.post('/my-family', requireRole('home_owner'), memCtrl.addFamilyMember);
 router.get('/my-visitors', isMember, memCtrl.getMyVisitors);
+router.put('/my-visitors/:id', isMember, memCtrl.updateVisitorStatus);
 router.post('/my-visitors/pre-approve', isMember, memCtrl.preApproveVisitor);
 router.get('/my-maintenance', isMember, memCtrl.getMyMaintenance);
 router.get('/my-complaints', isMember, memCtrl.getMyComplaints);
